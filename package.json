@@ -1,0 +1,20 @@
+{
+  "name": "slasm",
+  "version": "0.0.1",
+  "description": "slasm",
+  "main": "lib/interpreter/index.js",
+  "scripts": {
+    "prepublishOnly": "tsc",
+    "build": "tsc"
+  },
+  "bin": {
+    "slasm": "lib/bin.js"
+  },
+  "keywords": [],
+  "author": "0374flop",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^25.5.0"
+  }
+}
