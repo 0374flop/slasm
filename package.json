@@ -1,5 +1,5 @@
 {
-  "name": "slasm",
+  "name": "slasm-0374",
   "version": "0.0.1",
   "description": "slasm",
   "main": "lib/interpreter/index.js",
