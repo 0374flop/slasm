@@ -23,7 +23,7 @@ export default function parse(tokens: string[]): [string[], label[], string[]] {
         } else if (token[0] == ';' && token[token.length - 1] == ';') {
             const comment = token.slice(1, token.length - 1)
             if (comment[0] == '-' && comment[comment.length - 1] == '-') {
-                const label = { ip: instructions.length, name: comment.slice(1, token.length - 1) }
+                const label = { ip: instructions.length + 1, name: comment.slice(1, comment.length - 1) }
                 labels.push(label);
                 logger.log('label: "'+label.name+'"', 'ip:', label.ip);
             } else {

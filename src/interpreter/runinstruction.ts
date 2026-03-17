@@ -22,6 +22,11 @@ function readlineSync(prompt: string = ''): string {
     return buf.slice(0, n).toString().replace(/\r?\n$/, '');
 }
 
+// Get Label Name: label
+function gln(state: State, name: string) {
+    return state.labels.find(label => label.name === name);
+}
+
 function run_instruction(state: State): State {
     const operator = state.instructions[state.ip];
     logger.log('RI start:', operator, state.ip);
@@ -137,7 +142,8 @@ function run_instruction(state: State): State {
             // Get Label Name
             const name = state.stack.pop();
             if (name) {
-                const label = state.labels.find(label => label.name === name) || { ip: 0 };
+                const label = gln(state, name);
+                logger.log(state.labels);
                 state.stack.push(String(label?.ip));
             } else { 
                 throw_('Runtime', 'GLN name empty');
