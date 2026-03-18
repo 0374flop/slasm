@@ -11,6 +11,7 @@ export default function evaluate(instructions: string[] = [], clog: string[] = [
         clog,
         memory: new Map(),
         labels: labels,
+        callstack: [],
     };
     while (state.ip < state.instructions.length) {
         ri.run_instruction(state);

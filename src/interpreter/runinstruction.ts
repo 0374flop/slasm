@@ -2,16 +2,14 @@ import logger from "../simpledegugger.js";
 import throw_ from "../throw_.js";
 import type { label } from "./parse.js";
 
-// Зарезервированные символы для (S n)
-const RESERVED_SYMBOLS = ' .,!?+-*/_…()';
-
 export type State = {
     instructions: string[];
     stack: string[];
     ip: number;
     clog: string[];
     memory: Map<number, string>;
-    labels: label[]
+    labels: label[];
+    callstack: number[]; // стек адресов возврата для call/ret
 };
 
 // Синхронный ввод (блокирующий, для (q))
@@ -32,7 +30,6 @@ function run_instruction(state: State): State {
     logger.log('RI start:', operator, state.ip);
 
     switch (operator) {
-        // ── ВНУТРЕННИЙ ──────────────────────────────────────────
         case 'push': {
             state.ip++;
             if (state.ip >= state.instructions.length) throw_('Runtime', 'Missing value after push');
@@ -41,8 +38,6 @@ function run_instruction(state: State): State {
             state.ip++;
             break;
         }
-
-        // ── ВЫВОД ───────────────────────────────────────────────
         case 'clog': {
             const val = state.stack.pop() ?? '';
             logger.clog(val, state.clog);
@@ -70,16 +65,12 @@ function run_instruction(state: State): State {
             state.ip++;
             break;
         }
-
-        // ── ВВОД ────────────────────────────────────────────────
         case 'q': {
             const input = readlineSync();
             state.stack.push(input);
             state.ip++;
             break;
         }
-
-        // ── ПАМЯТЬ ──────────────────────────────────────────────
         case 'W': {
             // W: pop(n), pop(value)
             const val = state.stack.pop() ?? '';
@@ -94,8 +85,6 @@ function run_instruction(state: State): State {
             state.ip++;
             break;
         }
-
-        // ── СТРОКИ ──────────────────────────────────────────────
         case '~': {
             // Соединить всё что в стеке БЕЗ пробела
             const b = state.stack.pop() ?? '';
@@ -145,14 +134,12 @@ function run_instruction(state: State): State {
                 const label = gln(state, name);
                 logger.log(state.labels);
                 state.stack.push(String(label?.ip));
-            } else { 
+            } else {
                 throw_('Runtime', 'GLN name empty');
             }
             state.ip++;
             break;
         }
-
-        // ── АРИФМЕТИКА ──────────────────────────────────────────
         case '+': {
             const b = Number(state.stack.pop());
             const a = Number(state.stack.pop());
@@ -182,8 +169,6 @@ function run_instruction(state: State): State {
             state.ip++;
             break;
         }
-
-        // ── СРАВНЕНИЕ ───────────────────────────────────────────
         case '=': {
             const b = state.stack.pop();
             const a = state.stack.pop();
@@ -211,12 +196,10 @@ function run_instruction(state: State): State {
             state.ip++;
             break;
         }
-
-        // ── ПЕРЕХОДЫ ────────────────────────────────────────────
         case 'jump': {
             const target = Number(state.stack.pop());
             if (target < 1 || target > state.instructions.length) throw_('Runtime', `jump: target ${target} out of range`);
-            state.ip = target - 1; // инструкции нумеруются с 1 (но получаеться что если тут "(jump 1)" то оно прыгает на 1 в ["push","1","jump"], и ето безконечно. я затестил, работает точно также как и в оригинальном)
+            state.ip = target - 1;
             break;
         }
         case '?': {
@@ -230,11 +213,30 @@ function run_instruction(state: State): State {
             }
             break;
         }
+        case 'call': {
+            // pop(addr) — прыгает на addr, пушит адрес возврата в callstack
+            const target = Number(state.stack.pop());
+            if (target < 1 || target > state.instructions.length) throw_('Runtime', `call: target ${target} out of range`);
+            state.callstack.push(state.ip + 1); // адрес следующей инструкции после call
+            state.ip = target - 1;
+            break;
+        }
+        case 'ret': {
+            // возврат из функции
+            if (state.callstack.length === 0) throw_('Runtime', 'ret: callstack is empty');
+            state.ip = state.callstack.pop()!;
+            break;
+        }
+        case 'csnum': {
+            // размер callstack — полезно для отладки
+            state.stack.push(String(state.callstack.length));
+            state.ip++;
+            break;
+        }
 
-        // ── СТЕК ────────────────────────────────────────────────
         case 'S': {
             const n = Number(state.stack.pop());
-            state.stack.push(RESERVED_SYMBOLS[n] ?? '');
+            state.stack.push(' .,();-'[n] ?? '');
             state.ip++;
             break;
         }
@@ -265,7 +267,6 @@ function run_instruction(state: State): State {
             break;
         }
 
-        // ── ИНСТРУКЦИИ ──────────────────────────────────────────
         case 'i': {
             // Номер текущей инструкции (1-based)
             state.stack.push(String(state.ip + 1));
@@ -294,7 +295,6 @@ function run_instruction(state: State): State {
             break;
         }
 
-        // ── СПЕЦ ────────────────────────────────────────────────
         case '?*': {
             const max = Number(state.stack.pop());
             const min = Number(state.stack.pop());
@@ -304,17 +304,14 @@ function run_instruction(state: State): State {
             break;
         }
         case 'begin': {
-            // Просто структурный блок — ничего не делает
             state.ip++;
             break;
         }
         case 'none': {
-            // Просто структурный блок — ничего не делает
             state.ip++;
             break;
         }
         case 'wait': {
-            // Синхронный sleep через busy-wait (Node.js не имеет sync sleep)
             const ms = Number(state.stack.pop());
             const end = Date.now() + ms;
             while (Date.now() < end) {}
