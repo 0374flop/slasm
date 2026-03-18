@@ -2,28 +2,9 @@
 const [command, ...args] = process.argv.slice(2);
 import slasm from "./interpreter";
 import logger from "./simpledegugger";
-import path from "node:path";
-import fs from "node:fs";
-import zlib from "node:zlib";
+import repl from "./repl";
 
-function repl() {
-    const code = slasm.ri.readlineSync('> ');
-    if (code === null || code.toLowerCase() === 'exit') {
-        console.log('--exit--');
-        process.exit();
-    }
-    try {
-        slasm.eval_slasm(code);
-    } catch (error) {
-        if (error instanceof Error) {
-            console.log(error.message);
-        } else {
-            console.log(error);
-        }
-    }
-}
-
-if (args.find(arg => arg == 'debug')) { 
+if (args.find(arg => arg == 'debug')) {
     logger.enabled = true;
     logger.log('debug logs enabled');
 }
@@ -45,7 +26,7 @@ if (command == 'eval') {
         console.log(JSON.stringify(parsedata[2]));
     } else {
         const instr = parsedata[0].map((line, i) => `${i + 1}^ ${line}`).join("\n");
-        const labels = parsedata[1].map((line, i) => `${i + 1}. ${line.name}^${line.ip}`).join('\n')
+        const labels = parsedata[1].map((line, i) => `${i + 1}. ${line.name}^${line.ip}`).join('\n');
         const comments = parsedata[2].map((line, i) => `${i + 1}. ${line}`).join("\n");
         console.log(instr ? instr : '(none)');
         console.log(parsedata[0].length, '^', '------------');
@@ -55,57 +36,36 @@ if (command == 'eval') {
         console.log(parsedata[2].length, '^', '------------');
     }
 } else if (command == 'pack') {
-    const pathtofile = path.normalize(args[0]);
-    const useZ = args.includes('z');
-    if (fs.existsSync(pathtofile)) {
-        const code = fs.readFileSync(pathtofile, { encoding: 'utf-8' });
-        const parsedata = slasm.parse(slasm.tokenize(code));
-        let buff = slasm.SLASMBin.pack(parsedata);
-        const ext = useZ ? '.slasmz' : '.slasmbin';
-        if (useZ) buff = zlib.deflateSync(buff);
-        const filename = path.basename(pathtofile, ".slasm") + ext;
-        const pathtobuff = path.join(path.dirname(pathtofile), filename);
-        fs.writeFileSync(pathtobuff, buff);
-        console.log(pathtobuff);
-    } else {
-        console.log('no such file:', pathtofile);
+    try {
+        console.log(slasm.SLASMBin.packFile(args[0], args.includes('z')));
+    } catch (e) {
+        console.log(e instanceof Error ? e.message : e);
     }
 } else if (command == 'unpack') {
-    const pathtofile = path.normalize(args[0]);
-    if (fs.existsSync(pathtofile)) {
-        const ext = path.extname(pathtofile);
-        let buff = fs.readFileSync(pathtofile);
-        if (ext == '.slasmz') buff = zlib.inflateSync(buff);
-        const parsedata = slasm.SLASMBin.unpack(buff);
-        const filename = path.basename(pathtofile, ext) + '.slasmjson';
-        const pathtobuff = path.join(path.dirname(pathtofile), filename);
-        fs.writeFileSync(pathtobuff, JSON.stringify(parsedata, null, 2));
-        console.log(pathtobuff);
-    } else {
-        console.log('no such file:', pathtofile);
+    try {
+        console.log(slasm.SLASMBin.unpackFile(args[0]));
+    } catch (e) {
+        console.log(e instanceof Error ? e.message : e);
     }
 } else if (command == 'run') {
-    const pathtofile = path.normalize(args[0]);
+    const pathtofile = require('node:path').normalize(args[0]);
+    const fs = require('node:fs');
+    const zlib = require('node:zlib');
     if (fs.existsSync(pathtofile)) {
-        const ext = path.extname(pathtofile);
+        const ext = require('node:path').extname(pathtofile);
         if (ext == '.slasm') {
             const code = fs.readFileSync(pathtofile, { encoding: 'utf-8' });
             slasm.eval_slasm(code);
-            } else if (ext == '.slasmjson') {
-                const json = fs.readFileSync(pathtofile, { encoding: 'utf-8' });
-                const [instr, labels] = JSON.parse(json);
-                slasm.evaluate(instr, undefined, labels);
-            } else if (ext == '.slasmbin') {
-                const buff = fs.readFileSync(pathtofile);
-                const [instr1, labels] = slasm.SLASMBin.unpack(buff);
-                const instr: string[] = instr1.map((line => String(line)));
-                slasm.evaluate(instr, undefined, labels);
-            } else if (ext == '.slasmz') {
-                const buff = zlib.inflateSync(fs.readFileSync(pathtofile));
-                const [instr1, labels] = slasm.SLASMBin.unpack(buff);
-                const instr: string[] = instr1.map((line => String(line)));
-                slasm.evaluate(instr, undefined, labels);
-            } else {
+        } else if (ext == '.slasmjson') {
+            const [instr, labels] = JSON.parse(fs.readFileSync(pathtofile, { encoding: 'utf-8' }));
+            slasm.evaluate(instr, undefined, labels);
+        } else if (ext == '.slasmbin') {
+            const [instr, labels] = slasm.SLASMBin.unpack(fs.readFileSync(pathtofile));
+            slasm.evaluate(instr.map(String), undefined, labels);
+        } else if (ext == '.slasmz') {
+            const [instr, labels] = slasm.SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(pathtofile)));
+            slasm.evaluate(instr.map(String), undefined, labels);
+        } else {
             console.log('unknown extension:', ext);
         }
     } else {
@@ -123,9 +83,8 @@ commands:
     unpack <file>     unpack .slasmbin/.slasmz into .slasmjson
     run <file>        run .slasm / .slasmbin / .slasmz / .slasmjson
 
-
 flags:
-    debug             enable debug logs (for any command)`);
+    debug             enable debug logs (for any command but it's useful only which run, eval, repl & parse)`);
 } else {
     while (true) repl();
 }

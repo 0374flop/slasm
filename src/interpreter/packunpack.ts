@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
+import zlib from "node:zlib";
+
 export type ParsedSLASM = [Array<string | number>, { ip: number; name: string }[], string[]];
 
 export default class SLASMBin {
@@ -146,5 +150,54 @@ export default class SLASMBin {
         }
 
         return [code, labels, comments];
+    }
+
+    static packFile(filepath: string, useZ: boolean = false): string {
+        const p = path.normalize(filepath);
+        if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
+
+        const ext = path.extname(p);
+        let parsedata: ParsedSLASM;
+
+        if (ext === '.slasm') {
+            const { default: tokenize } = require('./tokenize.js');
+            const { default: parse } = require('./parse.js');
+            const code = fs.readFileSync(p, { encoding: 'utf-8' });
+            parsedata = parse(tokenize(code));
+        } else if (ext === '.slasmjson') {
+            parsedata = JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' }));
+        } else if (ext === '.slasmbin' || ext === '.slasmz') {
+            let buff = fs.readFileSync(p);
+            if (ext === '.slasmz') buff = zlib.inflateSync(buff);
+            parsedata = this.unpack(buff);
+        } else {
+            throw new Error(`unknown extension: ${ext}`);
+        }
+
+        const outExt = useZ ? '.slasmz' : '.slasmbin';
+        let buff = this.pack(parsedata);
+        if (useZ) buff = zlib.deflateSync(buff);
+
+        const outPath = path.join(path.dirname(p), path.basename(p, ext) + outExt);
+        fs.writeFileSync(outPath, buff);
+        return outPath;
+    }
+
+    static unpackFile(filepath: string): string {
+        const p = path.normalize(filepath);
+        if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
+
+        const ext = path.extname(p);
+        if (ext !== '.slasmbin' && ext !== '.slasmz') {
+            throw new Error(`expected .slasmbin or .slasmz, got: ${ext}`);
+        }
+
+        let buff = fs.readFileSync(p);
+        if (ext === '.slasmz') buff = zlib.inflateSync(buff);
+        const parsedata = this.unpack(buff);
+
+        const outPath = path.join(path.dirname(p), path.basename(p, ext) + '.slasmjson');
+        fs.writeFileSync(outPath, JSON.stringify(parsedata, null, 2));
+        return outPath;
     }
 }
