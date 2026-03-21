@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 
+import slasm from "./interpreter";
+
 export type ParsedSLASM = [Array<string | number>, { ip: number; name: string }[], string[]];
 
 export default class SLASMBin {
@@ -160,10 +162,8 @@ export default class SLASMBin {
         let parsedata: ParsedSLASM;
 
         if (ext === '.slasm') {
-            const { default: tokenize } = require('./tokenize.js');
-            const { default: parse } = require('./parse.js');
             const code = fs.readFileSync(p, { encoding: 'utf-8' });
-            parsedata = parse(tokenize(code));
+            parsedata = slasm.parse(slasm.tokenize(code));
         } else if (ext === '.slasmjson') {
             parsedata = JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' }));
         } else if (ext === '.slasmbin' || ext === '.slasmz') {
