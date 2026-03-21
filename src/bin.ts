@@ -3,6 +3,7 @@ const [command, ...args] = process.argv.slice(2);
 import slasm from "./interpreter";
 import logger from "./simpledegugger";
 import repl from "./repl";
+import decompile from "./decompiler";
 
 if (args.find(arg => arg == 'debug')) {
     logger.enabled = true;
@@ -47,6 +48,39 @@ if (command == 'eval') {
     } catch (e) {
         console.log(e instanceof Error ? e.message : e);
     }
+} else if (command == 'decompile') {
+    const path = require('node:path');
+    const fs = require('node:fs');
+    const zlib = require('node:zlib');
+    const filepath = path.normalize(args[0]);
+    if (!fs.existsSync(filepath)) {
+        console.log('no such file:', filepath);
+        process.exit(1);
+    }
+    const ext = path.extname(filepath);
+    let parsed;
+    try {
+        if (ext === '.slasmjson') {
+            parsed = JSON.parse(fs.readFileSync(filepath, { encoding: 'utf-8' }));
+        } else if (ext === '.slasmbin') {
+            parsed = slasm.SLASMBin.unpack(fs.readFileSync(filepath));
+        } else if (ext === '.slasmz') {
+            parsed = slasm.SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(filepath)));
+        } else {
+            console.log('decompile supports: .slasmjson, .slasmbin, .slasmz');
+            process.exit(1);
+        }
+        const result = decompile(parsed);
+        if (args.includes('--out')) {
+            const outPath = path.join(path.dirname(filepath), path.basename(filepath, ext) + '.decompiled.slasm');
+            fs.writeFileSync(outPath, result, { encoding: 'utf-8' });
+            console.log(outPath);
+        } else {
+            console.log(result);
+        }
+    } catch (e) {
+        console.log(e instanceof Error ? e.message : e);
+    }
 } else if (command == 'run') {
     const pathtofile = require('node:path').normalize(args[0]);
     const fs = require('node:fs');
@@ -75,16 +109,18 @@ if (command == 'eval') {
     console.log(`slasm - SLASM interpreter
 
 commands:
-    eval <code>       run code directly
-    repl              interactive mode
-    debug             repl with debug logs
-    parse <code>      show parsed code
-    pack <file> [z]   pack .slasm into .slasmbin (or .slasmz if z)
-    unpack <file>     unpack .slasmbin/.slasmz into .slasmjson
-    run <file>        run .slasm / .slasmbin / .slasmz / .slasmjson
+    eval <code>          run code directly
+    repl                 interactive mode
+    debug                repl with debug logs
+    parse <code>         show parsed code
+    pack <file> [z]      pack .slasm into .slasmbin (or .slasmz if z)
+    unpack <file>        unpack .slasmbin/.slasmz into .slasmjson
+    decompile <file>     decompile .slasmjson/.slasmbin/.slasmz back to .slasm
+    run <file>           run .slasm / .slasmbin / .slasmz / .slasmjson
 
 flags:
-    debug             enable debug logs (for any command but it's useful only which run, eval, repl & parse)`);
+    debug                enable debug logs (for any command but it's useful only which run, eval, repl & parse)
+    --out                (for decompile) save result to .decompiled.slasm file instead of printing`);
 } else {
     while (true) repl();
 }

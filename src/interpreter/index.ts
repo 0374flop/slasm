@@ -3,7 +3,7 @@ import tokenize from './tokenize.js';
 import evaluate from './evaluate.js';
 import logger from '../simpledegugger.js';
 import ri from './runinstruction.js';
-import SLASMBin from './packunpack.js';
+import SLASMBin from '../packunpack.js';
 
 function eval_slasm(program: string) {
     const tokens = tokenize(program);
