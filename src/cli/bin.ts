@@ -21,7 +21,7 @@ function readKey(a: string[]): string | undefined {
         if (a[i].startsWith('--key=')) return a[i].slice('--key='.length);
         if (a[i] === '--key') {
             const val = a[i + 1];
-            if (!val || val.startsWith('--')) throw new Error('--key requires a value');
+            if (!val || val.startsWith('--')) return readStdin('Enter key: ');
             return val;
         }
     }
