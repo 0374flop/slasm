@@ -10,10 +10,15 @@ export type VM = {
     directives:   directive[];
 };
 
+export type CallFrame = {
+    namespace: string;
+    ip:        number;
+};
+
 export type Runtime = {
     modules:   Map<string, VM>;
     clog:      string[];
-    callstack: number[];
+    callstack: CallFrame[];
     current:   string;
 };
 

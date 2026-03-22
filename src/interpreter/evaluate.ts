@@ -1,5 +1,7 @@
-import type { label, directive } from './types.js';
+import path from 'node:path';
+import type { label, directive, importDef } from './types.js';
 import { createRuntime } from './vm.js';
+import { loadModule } from './loader.js';
 import runInstruction from './runinstruction/index.js';
 
 export default function evaluate(
@@ -7,9 +9,15 @@ export default function evaluate(
     labels:       label[]     = [],
     directives:   directive[] = [],
     clog:         string[]    = [],
+    imports:      importDef[] = [],
+    basedir:      string      = process.cwd(),
 ): string[] {
     const runtime = createRuntime(instructions, labels, directives);
     runtime.clog = clog;
+
+    for (const imp of imports) {
+        loadModule(imp.path, imp.namespace, runtime, basedir);
+    }
 
     const vm = runtime.modules.get('master')!;
 

@@ -1,0 +1,4 @@
+;+./greeting.slasm:greet+;
+(W greet.1 "World")
+(callns "greet" "greet")
+(clog "done!")
