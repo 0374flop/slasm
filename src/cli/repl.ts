@@ -1,7 +1,8 @@
-import slasm from "../interpreter";
+import { readlineSync } from '../readline.js';
+import slasm from '../interpreter';
 
 export default function repl() {
-    const code = slasm.ri.readlineSync('> ');
+    const code = readlineSync('> ');
     if (code === null || code.toLowerCase() === 'exit') {
         console.log('--exit--');
         process.exit();

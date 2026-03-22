@@ -46,11 +46,9 @@ export default class SLASMBin {
 
         const buffers: Buffer[] = [];
 
-        // HEADER
         buffers.push(Buffer.from("SLBM"));
-        buffers.push(Buffer.from([1])); // версия
+        buffers.push(Buffer.from([1]));
 
-        // CONST_TABLE
         buffers.push(this.encodeVarint(constTable.length));
         for (const str of constTable) {
             const b = Buffer.from(str, "utf8");
@@ -58,19 +56,17 @@ export default class SLASMBin {
             buffers.push(b);
         }
 
-        // CODE
         buffers.push(this.encodeVarint(code.length));
         for (const item of code) {
             if (typeof item === "number" || !isNaN(Number(item))) {
-                buffers.push(Buffer.from([0])); // число
+                buffers.push(Buffer.from([0]));
                 buffers.push(this.encodeVarint(Number(item)));
             } else {
-                buffers.push(Buffer.from([1])); // строка
+                buffers.push(Buffer.from([1]));
                 buffers.push(this.encodeVarint(constIndex[item]));
             }
         }
 
-        // LABELS
         buffers.push(this.encodeVarint(labels.length));
         for (const lbl of labels) {
             const buf = Buffer.alloc(4);
@@ -79,7 +75,6 @@ export default class SLASMBin {
             buffers.push(this.encodeVarint(constIndex[lbl.name]));
         }
 
-        // COMMENTS
         if (comments) {
             buffers.push(this.encodeVarint(comments.length));
             for (const c of comments) {
@@ -103,13 +98,11 @@ export default class SLASMBin {
             return value;
         };
 
-        // magic check
         const magic = buffer.slice(0, 4).toString();
         if (magic !== "SLBM") throw new Error("Not a SLASM binary");
         offset += 4;
-        const version = buffer[offset++];
+        offset++;
 
-        // CONST_TABLE
         const constTable: string[] = [];
         const constCount = readVarint();
         for (let i = 0; i < constCount; i++) {
@@ -119,29 +112,22 @@ export default class SLASMBin {
             offset += len;
         }
 
-        // CODE
         const codeLen = readVarint();
         const code: Array<string | number> = [];
         for (let i = 0; i < codeLen; i++) {
             const type = buffer[offset++];
             if (type === 0) code.push(readVarint());
-            else {
-                const idx = readVarint();
-                code.push(constTable[idx]);
-            }
+            else code.push(constTable[readVarint()]);
         }
 
-        // LABELS
         const labelsLen = readVarint();
         const labels: { ip: number; name: string }[] = [];
         for (let i = 0; i < labelsLen; i++) {
             const ip = buffer.readUInt32LE(offset);
             offset += 4;
-            const nameIdx = readVarint();
-            labels.push({ ip, name: constTable[nameIdx] });
+            labels.push({ ip, name: constTable[readVarint()] });
         }
 
-        // COMMENTS
         const commentsLen = readVarint();
         const comments: string[] = [];
         for (let i = 0; i < commentsLen; i++) {
@@ -163,7 +149,8 @@ export default class SLASMBin {
 
         if (ext === '.slasm') {
             const code = fs.readFileSync(p, { encoding: 'utf-8' });
-            parsedata = slasm.parse(slasm.tokenize(code));
+            const result = slasm.parse(slasm.tokenize(code));
+            parsedata = [result.instructions, result.labels, result.comments.map(c => c.text)];
         } else if (ext === '.slasmjson') {
             parsedata = JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' }));
         } else if (ext === '.slasmbin' || ext === '.slasmz') {

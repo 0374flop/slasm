@@ -13,14 +13,15 @@ export default function run(filepath: string) {
     if (ext == '.slasm') {
         slasm.eval_slasm(fs.readFileSync(p, { encoding: 'utf-8' }));
     } else if (ext == '.slasmjson') {
-        const [instr, labels] = JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' }));
-        slasm.evaluate(instr, undefined, labels);
+        const parsed = JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' }));
+        const [instr, labels] = parsed;
+        slasm.evaluate(instr.map(String), labels ?? [], []);
     } else if (ext == '.slasmbin') {
         const [instr, labels] = slasm.SLASMBin.unpack(fs.readFileSync(p));
-        slasm.evaluate(instr.map(String), undefined, labels);
+        slasm.evaluate(instr.map(String), labels ?? [], []);
     } else if (ext == '.slasmz') {
         const [instr, labels] = slasm.SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(p)));
-        slasm.evaluate(instr.map(String), undefined, labels);
+        slasm.evaluate(instr.map(String), labels ?? [], []);
     } else {
         console.log('unknown extension:', ext);
     }

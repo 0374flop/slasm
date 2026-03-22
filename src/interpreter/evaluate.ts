@@ -1,21 +1,21 @@
-import logger from "../output.js";
-import { label } from "./parse.js";
-import ri, { type State } from "./runinstruction/runinstruction.js";
+import type { label, directive } from './types.js';
+import { createRuntime } from './vm.js';
+import runInstruction from './runinstruction/index.js';
 
-export default function evaluate(instructions: string[] = [], clog: string[] = [], labels: label[] = []): string[] {
-    logger.warn('evaluate start');
-    const state: State = {
-        instructions,
-        stack: [],
-        ip: 0,
-        clog,
-        memory: new Map(),
-        labels: labels,
-        callstack: [],
-    };
-    while (state.ip < state.instructions.length) {
-        ri.run_instruction(state);
+export default function evaluate(
+    instructions: string[],
+    labels:       label[]     = [],
+    directives:   directive[] = [],
+    clog:         string[]    = [],
+): string[] {
+    const runtime = createRuntime(instructions, labels, directives);
+    runtime.clog = clog;
+
+    const vm = runtime.modules.get('master')!;
+
+    while (vm.ip < vm.instructions.length) {
+        runInstruction(runtime);
     }
-    logger.warn('evaluate end');
-    return state.clog;
+
+    return runtime.clog;
 }

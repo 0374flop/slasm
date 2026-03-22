@@ -1,51 +1,17 @@
-export type label = {
-    ip:   number;
-    name: string;
-}
-
-export type comment = {
-    ip:   number;
-    text: string;
-}
-
-export type directive = {
-    name:   string;
-    values: string[];
-}
-
-export type exportDef = {
-    ip:      number;
-    name:    string;
-    args:    number;
-    returns: number;
-}
-
-export type importDef = {
-    path:      string;
-    namespace: string;
-}
-
-export type ParseResult = {
-    instructions: string[];
-    labels:       label[];
-    comments:     comment[];
-    directives:   directive[];
-    exports:      exportDef[];
-    imports:      importDef[];
-}
+import * as Types from './types'
 
 function parseInner(content: string): string[] {
     return content.split(':');
 }
 
-export default function parse(tokens: string[]): ParseResult {
+export default function parse(tokens: string[]): Types.ParseResult {
     const instructions: string[] = [];
     const operatorstack: string[] = [];
-    const labels:     label[]     = [];
-    const comments:   comment[]   = [];
-    const directives: directive[] = [];
-    const exports:    exportDef[] = [];
-    const imports:    importDef[] = [];
+    const labels:     Types.label[]     = [];
+    const comments:   Types.comment[]   = [];
+    const directives: Types.directive[] = [];
+    const exports:    Types.exportDef[] = [];
+    const imports:    Types.importDef[] = [];
 
     while (tokens.length > 0) {
         const token = tokens.shift()!;

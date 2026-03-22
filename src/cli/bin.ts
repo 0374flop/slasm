@@ -19,7 +19,7 @@ const commands: Record<string, Command> = {
     repl: () => replLoop(),
     parse: (a) => {
         const parsedata = slasm.parse(slasm.tokenize(a.join(' ')));
-        console.log(prettyParse(parsedata[0], parsedata[1], parsedata[2]));
+        console.log(prettyParse(parsedata.instructions, parsedata.labels, parsedata.comments));
     },
     pack: (a) => console.log(slasm.SLASMBin.packFile(a[0], a.includes('z'))),
     unpack: (a) => console.log(slasm.SLASMBin.unpackFile(a[0])),
@@ -58,9 +58,7 @@ function replLoop(): never {
     while (true) repl();
 }
 
-if (!first) {
-    replLoop();
-}
+if (!first) replLoop();
 
 if (first && commands[first]) {
     try {
