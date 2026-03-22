@@ -10,7 +10,7 @@
   "bin": {
     "slasm": "lib/cli/bin.js"
   },
-  "keywords": [],
+  "keywords": ["slasm","programing language", "programming","language", "interpreter"],
   "author": "0374flop",
   "license": "MIT",
   "type": "commonjs",
