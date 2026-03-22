@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 
-import slasm from "./interpreter";
+import slasm from "../interpreter";
 
 export type ParsedSLASM = [Array<string | number>, { ip: number; name: string }[], string[]];
 

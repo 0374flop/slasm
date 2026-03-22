@@ -1,9 +1,9 @@
 import parse from './parse.js';
 import tokenize from './tokenize.js';
 import evaluate from './evaluate.js';
-import logger from '../simpledebugger.js';
-import ri from './runinstruction.js';
-import SLASMBin from '../packunpack.js';
+import logger from '../output.js';
+import ri from './runinstruction/runinstruction.js';
+import SLASMBin from '../tools/packunpack.js';
 
 function eval_slasm(program: string) {
     const tokens = tokenize(program);

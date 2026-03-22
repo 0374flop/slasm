@@ -2,10 +2,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import slasm from "./interpreter";
+import slasm from "../interpreter";
 import repl from "./repl";
-import run from "./run";
-import { decompileFile } from "./decompiler";
+import run from "../tools/run";
+import { decompileFile } from "../tools/decompiler";
 import prettyParse from "./prettyparse";
 
 type Command = (args: string[]) => void;

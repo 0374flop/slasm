@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import SLASMBin, { type ParsedSLASM } from './packunpack.js';
+import SLASMBin, { type ParsedSLASM } from './packunpack';
 
 const ARITY: Record<string, [number, number]> = {
     'clog':       [1, 0],

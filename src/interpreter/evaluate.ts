@@ -1,6 +1,6 @@
-import logger from "../simpledebugger.js";
+import logger from "../output.js";
 import { label } from "./parse.js";
-import ri, { type State } from "./runinstruction.js";
+import ri, { type State } from "./runinstruction/runinstruction.js";
 
 export default function evaluate(instructions: string[] = [], clog: string[] = [], labels: label[] = []): string[] {
     logger.warn('evaluate start');

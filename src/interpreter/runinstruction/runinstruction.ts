@@ -1,6 +1,6 @@
-import logger from "../simpledebugger.js";
-import throw_ from "../throw_.js";
-import type { label } from "./parse.js";
+import logger from "../../output.js";
+import throw_ from "../../throw_.js";
+import type { label } from "../parse.js";
 
 export type State = {
     instructions: string[];

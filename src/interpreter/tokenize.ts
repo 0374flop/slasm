@@ -1,4 +1,4 @@
-import logger from "../simpledebugger.js";
+import logger from "../output.js";
 
 export default function tokenize(program: string): string[] {
     logger.log('begin tokenize: ', program);

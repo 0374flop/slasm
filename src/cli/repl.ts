@@ -1,4 +1,4 @@
-import slasm from "./interpreter";
+import slasm from "../interpreter";
 
 export default function repl() {
     const code = slasm.ri.readlineSync('> ');

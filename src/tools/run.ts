@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import slasm from './interpreter';
+import slasm from '../interpreter';
 
 export default function run(filepath: string) {
     const p = path.normalize(filepath);

@@ -8,7 +8,7 @@
     "build": "tsc"
   },
   "bin": {
-    "slasm": "lib/bin.js"
+    "slasm": "lib/cli/bin.js"
   },
   "keywords": [],
   "author": "0374flop",

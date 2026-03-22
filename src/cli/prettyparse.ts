@@ -1,4 +1,4 @@
-import type { label } from './interpreter/parse.js';
+import type { label } from '../interpreter/parse.js';
 
 export default function prettyParse(instructions: string[], labels: label[], comments: string[]): string {
     const lines: string[] = [];
