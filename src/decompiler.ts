@@ -45,6 +45,12 @@ const ARITY: Record<string, [number, number]> = {
     'throw':      [1, 0],
 };
 
+function lit(val: string): string {
+    if (val.startsWith('(')) return val;
+    if (val.includes(' ')) return `"${val}"`;
+    return val;
+}
+
 export default function decompile(parsed: ParsedSLASM): string {
     const [instructions, labels] = parsed;
 
@@ -75,7 +81,7 @@ export default function decompile(parsed: ParsedSLASM): string {
 
         if (op === 'push') {
             const val = String(instructions[i + 1]);
-            exprStack.push(val);
+            exprStack.push(lit(val));
             i += 2;
             continue;
         }
@@ -123,7 +129,7 @@ export default function decompile(parsed: ParsedSLASM): string {
     if (exprStack.length > 0) {
         output.push(';orphaned-stack-items:;');
         for (const item of exprStack) {
-            output.push(item);
+            output.push("   ", item);
         }
     }
 

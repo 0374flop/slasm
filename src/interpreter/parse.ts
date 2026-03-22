@@ -1,4 +1,4 @@
-import logger from "../simpledegugger.js";
+import logger from "../simpledebugger.js";
 import throw_ from "../throw_.js";
 
 export type label = {

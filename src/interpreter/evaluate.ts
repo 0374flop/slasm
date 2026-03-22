@@ -1,4 +1,4 @@
-import logger from "../simpledegugger.js";
+import logger from "../simpledebugger.js";
 import { label } from "./parse.js";
 import ri, { type State } from "./runinstruction.js";
 

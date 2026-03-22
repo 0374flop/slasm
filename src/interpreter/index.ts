@@ -1,7 +1,7 @@
 import parse from './parse.js';
 import tokenize from './tokenize.js';
 import evaluate from './evaluate.js';
-import logger from '../simpledegugger.js';
+import logger from '../simpledebugger.js';
 import ri from './runinstruction.js';
 import SLASMBin from '../packunpack.js';
 

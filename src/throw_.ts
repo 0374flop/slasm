@@ -1,4 +1,4 @@
-import logger from "./simpledegugger.js";
+import logger from "./simpledebugger.js";
 
 export default function throw_(error: string = 'Runtime', desc: string) {
     logger.error(`${error}Error : ${desc}`);

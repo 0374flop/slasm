@@ -1,23 +1,63 @@
-import logger from "../simpledegugger.js";
+import logger from "../simpledebugger.js";
 
 export default function tokenize(program: string): string[] {
     logger.log('begin tokenize: ', program);
-    let acumulator: string = '';
+    let accumulator: string = '';
     let tokens: Array<string> = [];
-    for (let i = 0; i < program.length; i++) {
-        const token: string = program[i];
-        if ('() \n\t\r'.includes(token)) {
-            if (acumulator !== '') {
-                tokens.push(acumulator);
-                acumulator = '';
+    let i = 0;
+
+    while (i < program.length) {
+        const char = program[i];
+
+        if (char === ';') {
+            if (accumulator !== '') {
+                tokens.push(accumulator);
+                accumulator = '';
             }
-            if ('()'.includes(token)) tokens.push(token);
-        } else {
-            acumulator = acumulator+token;
+            let block = ';';
+            i++;
+            while (i < program.length && program[i] !== ';') {
+                block += program[i];
+                i++;
+            }
+            block += ';';
+            tokens.push(block);
+            i++;
+            continue;
         }
+
+        if (char === '"' || char === "'" || char === '`') {
+            if (accumulator !== '') {
+                tokens.push(accumulator);
+                accumulator = '';
+            }
+            const quote = char;
+            let str = '';
+            i++;
+            while (i < program.length && program[i] !== quote) {
+                str += program[i];
+                i++;
+            }
+            tokens.push(str);
+            i++;
+            continue;
+        }
+
+        if ('() \n\t\r'.includes(char)) {
+            if (accumulator !== '') {
+                tokens.push(accumulator);
+                accumulator = '';
+            }
+            if ('()'.includes(char)) tokens.push(char);
+        } else {
+            accumulator += char;
+        }
+
+        i++;
     }
-    if (acumulator !== '') {
-        tokens.push(acumulator);
+
+    if (accumulator !== '') {
+        tokens.push(accumulator);
     }
 
     logger.log('end tokenize: ', program, ',', tokens);

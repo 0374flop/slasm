@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 const [command, ...args] = process.argv.slice(2);
 import slasm from "./interpreter";
-import logger from "./simpledegugger";
+import logger from "./simpledebugger";
 import repl from "./repl";
 import decompile from "./decompiler";
+import path from 'node:path';
+import fs from 'node:fs';
+import zlib from 'node:zlib';
 
 if (args.find(arg => arg == 'debug')) {
     logger.enabled = true;
@@ -49,9 +52,6 @@ if (command == 'eval') {
         console.log(e instanceof Error ? e.message : e);
     }
 } else if (command == 'decompile') {
-    const path = require('node:path');
-    const fs = require('node:fs');
-    const zlib = require('node:zlib');
     const filepath = path.normalize(args[0]);
     if (!fs.existsSync(filepath)) {
         console.log('no such file:', filepath);
@@ -82,11 +82,9 @@ if (command == 'eval') {
         console.log(e instanceof Error ? e.message : e);
     }
 } else if (command == 'run') {
-    const pathtofile = require('node:path').normalize(args[0]);
-    const fs = require('node:fs');
-    const zlib = require('node:zlib');
+    const pathtofile = path.normalize(args[0]);
     if (fs.existsSync(pathtofile)) {
-        const ext = require('node:path').extname(pathtofile);
+        const ext = path.extname(pathtofile);
         if (ext == '.slasm') {
             const code = fs.readFileSync(pathtofile, { encoding: 'utf-8' });
             slasm.eval_slasm(code);

@@ -1,4 +1,4 @@
-import logger from "../simpledegugger.js";
+import logger from "../simpledebugger.js";
 import throw_ from "../throw_.js";
 import type { label } from "./parse.js";
 
@@ -66,7 +66,7 @@ function run_instruction(state: State): State {
             break;
         }
         case 'q': {
-            const input = readlineSync();
+            const input = readlineSync('> ');
             state.stack.push(input);
             state.ip++;
             break;

@@ -16,7 +16,7 @@ class Debugger extends EventEmitter {
 
     public clog(text: any, array: string[] = []) {
         array.push(text);
-        console.log('CLOG: "'+text+'"');
+        console.log(text);
         this.emit('clog', text, array);
     }
 }
