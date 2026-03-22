@@ -3,8 +3,10 @@ import path from "node:path";
 import zlib from "node:zlib";
 
 import slasm from "../interpreter";
+import { encryptFile, decrypt, isEncrypted } from './encrypt';
 
-export type ParsedSLASM = [Array<string | number>, { ip: number; name: string }[], string[]];
+export type ExportEntry = { ip: number; name: string; args: number; returns: number };
+export type ParsedSLASM = [Array<string | number>, { ip: number; name: string }[], string[], ExportEntry[]?];
 
 export default class SLASMBin {
     private static encodeVarint(n: number): Buffer {
@@ -29,7 +31,7 @@ export default class SLASMBin {
     }
 
     static pack(parsed: ParsedSLASM): Buffer {
-        const [code, labels, comments] = parsed;
+        const [code, labels, comments, exports = []] = parsed;
         const constTable: string[] = [];
         const constIndex: Record<string, number> = {};
 
@@ -43,11 +45,12 @@ export default class SLASMBin {
         code.forEach(item => { if (typeof item === "string" && isNaN(Number(item))) addString(item); });
         labels.forEach(lbl => addString(lbl.name));
         if (comments) comments.forEach(c => addString(c));
+        exports.forEach(e => addString(e.name));
 
         const buffers: Buffer[] = [];
 
         buffers.push(Buffer.from("SLBM"));
-        buffers.push(Buffer.from([1]));
+        buffers.push(Buffer.from([2]));
 
         buffers.push(this.encodeVarint(constTable.length));
         for (const str of constTable) {
@@ -86,6 +89,16 @@ export default class SLASMBin {
             buffers.push(this.encodeVarint(0));
         }
 
+        buffers.push(this.encodeVarint(exports.length));
+        for (const e of exports) {
+            const buf = Buffer.alloc(4);
+            buf.writeUInt32LE(e.ip, 0);
+            buffers.push(buf);
+            buffers.push(this.encodeVarint(constIndex[e.name]));
+            buffers.push(this.encodeVarint(e.args));
+            buffers.push(this.encodeVarint(e.returns));
+        }
+
         return Buffer.concat(buffers);
     }
 
@@ -98,10 +111,11 @@ export default class SLASMBin {
             return value;
         };
 
-        const magic = buffer.slice(0, 4).toString();
-        if (magic !== "SLBM") throw new Error("Not a SLASM binary");
+        const magic = buffer.slice(0, 4).toString('ascii');
+        if (magic === 'SLBE') throw new Error('file is encrypted, provide --key');
+        if (magic !== 'SLBM') throw new Error('Not a SLASM binary');
         offset += 4;
-        offset++;
+        const version = buffer[offset++];
 
         const constTable: string[] = [];
         const constCount = readVarint();
@@ -137,10 +151,23 @@ export default class SLASMBin {
             offset += len;
         }
 
-        return [code, labels, comments];
+        const exports: ExportEntry[] = [];
+        if (version >= 2 && offset < buffer.length) {
+            const exportsLen = readVarint();
+            for (let i = 0; i < exportsLen; i++) {
+                const ip = buffer.readUInt32LE(offset);
+                offset += 4;
+                const name = constTable[readVarint()];
+                const args = readVarint();
+                const returns = readVarint();
+                exports.push({ ip, name, args, returns });
+            }
+        }
+
+        return [code, labels, comments, exports];
     }
 
-    static packFile(filepath: string, useZ: boolean = false): string {
+    static packFile(filepath: string, useZ: boolean = false, key?: string): string {
         const p = path.normalize(filepath);
         if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
 
@@ -150,7 +177,7 @@ export default class SLASMBin {
         if (ext === '.slasm') {
             const code = fs.readFileSync(p, { encoding: 'utf-8' });
             const result = slasm.parse(slasm.tokenize(code));
-            parsedata = [result.instructions, result.labels, result.comments.map(c => c.text)];
+            parsedata = [result.instructions, result.labels, result.comments.map(c => c.text), result.exports];
         } else if (ext === '.slasmjson') {
             parsedata = JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' }));
         } else if (ext === '.slasmbin' || ext === '.slasmz') {
@@ -167,10 +194,12 @@ export default class SLASMBin {
 
         const outPath = path.join(path.dirname(p), path.basename(p, ext) + outExt);
         fs.writeFileSync(outPath, buff);
+
+        if (key) return encryptFile(outPath, key);
         return outPath;
     }
 
-    static unpackFile(filepath: string): string {
+    static unpackFile(filepath: string, key?: string): string {
         const p = path.normalize(filepath);
         if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
 
@@ -180,6 +209,12 @@ export default class SLASMBin {
         }
 
         let buff = fs.readFileSync(p);
+
+        if (isEncrypted(buff)) {
+            if (!key) throw new Error('file is encrypted, provide --key');
+            buff = decrypt(buff, key);
+        }
+
         if (ext === '.slasmz') buff = zlib.inflateSync(buff);
         const parsedata = this.unpack(buff);
 

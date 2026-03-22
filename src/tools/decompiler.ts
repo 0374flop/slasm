@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import SLASMBin, { type ParsedSLASM } from './packunpack';
+import SLASMBin, { type ParsedSLASM, type ExportEntry } from './packunpack';
+import { isEncrypted, decrypt } from './encrypt';
 
 const ARITY: Record<string, [number, number]> = {
     'clog':       [1, 0],
@@ -52,28 +53,38 @@ function lit(val: string): string {
     return val;
 }
 
-export function decompileFile(filepath: string): string {
+export function decompileFile(filepath: string, key?: string): string {
     const p = path.normalize(filepath);
     if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
     const ext = path.extname(p);
     if (ext === '.slasmjson') {
         return decompile(JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' })));
-    } else if (ext === '.slasmbin') {
-        return decompile(SLASMBin.unpack(fs.readFileSync(p)));
-    } else if (ext === '.slasmz') {
-        return decompile(SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(p))));
+    } else if (ext === '.slasmbin' || ext === '.slasmz') {
+        let buff = fs.readFileSync(p);
+        if (isEncrypted(buff)) {
+            if (!key) throw new Error('file is encrypted, provide --key');
+            buff = decrypt(buff, key);
+        }
+        if (ext === '.slasmz') buff = zlib.inflateSync(buff);
+        return decompile(SLASMBin.unpack(buff));
     } else {
         throw new Error(`decompile supports: .slasmjson, .slasmbin, .slasmz`);
     }
 }
 
 export default function decompile(parsed: ParsedSLASM): string {
-    const [instructions, labels] = parsed;
+    const [instructions, labels, , exports = []] = parsed;
 
     const labelAtIp = new Map<number, string>();
     for (const lbl of labels) {
         labelAtIp.set(lbl.ip, lbl.name);
     }
+
+    const exportAtIp = new Map<number, ExportEntry>();
+    for (const e of exports) {
+        exportAtIp.set(e.ip, e);
+    }
+
     const emittedLabels = new Set<number>();
 
     const exprStack: string[] = [];
@@ -83,7 +94,12 @@ export default function decompile(parsed: ParsedSLASM): string {
 
     const maybeEmitLabel = (ip: number) => {
         if (labelAtIp.has(ip) && !emittedLabels.has(ip)) {
-            output.push(`;-${labelAtIp.get(ip)}-;`);
+            const exp = exportAtIp.get(ip);
+            if (exp) {
+                output.push(`;=${exp.name}:${exp.args}:${exp.returns}=;`);
+            } else {
+                output.push(`;-${labelAtIp.get(ip)}-;`);
+            }
             emittedLabels.add(ip);
         }
     };

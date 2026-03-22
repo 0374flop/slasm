@@ -33,18 +33,15 @@ export default function parse(tokens: string[]): Types.ParseResult {
             const ip = instructions.length + 1;
 
             if (marker === '-' && markerEnd === '-') {
-                // ;-name-; / ;-name:args:returns-;
                 const body = inner.slice(1, inner.length - 1);
                 const parts = parseInner(body);
                 if (parts.length === 3) {
-                    // ;-name:2:1-;
                     labels.push({ ip, name: parts[0] });
                 } else {
                     labels.push({ ip, name: body });
                 }
 
             } else if (marker === '=' && markerEnd === '=') {
-                // ;=name:args:returns=;
                 const body = inner.slice(1, inner.length - 1);
                 const parts = parseInner(body);
                 if (parts.length === 3) {
@@ -56,13 +53,11 @@ export default function parse(tokens: string[]): Types.ParseResult {
                     });
                     labels.push({ ip, name: parts[0] });
                 } else {
-                    // ;=name=;
                     exports.push({ ip, name: body, args: 0, returns: 0 });
                     labels.push({ ip, name: body });
                 }
 
             } else if (marker === '+' && markerEnd === '+') {
-                // ;+./path:namespace+; / ;+./path+;
                 const body = inner.slice(1, inner.length - 1).trim();
                 const colonIdx = body.lastIndexOf(':');
                 if (colonIdx !== -1) {
@@ -76,7 +71,6 @@ export default function parse(tokens: string[]): Types.ParseResult {
                 }
 
             } else if (marker === '!' && markerEnd === '!') {
-                // ;!name!; / ;!name:value1:value2!;
                 const body = inner.slice(1, inner.length - 1).trim();
                 const parts = parseInner(body);
                 directives.push({
