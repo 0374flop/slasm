@@ -1,6 +1,7 @@
-import type { label } from './interpreter/parse.js';
-
-export type ParsedSLASM = [string[], label[], string[]];
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import SLASMBin, { type ParsedSLASM } from './packunpack.js';
 
 const ARITY: Record<string, [number, number]> = {
     'clog':       [1, 0],
@@ -49,6 +50,21 @@ function lit(val: string): string {
     if (val.startsWith('(')) return val;
     if (val.includes(' ')) return `"${val}"`;
     return val;
+}
+
+export function decompileFile(filepath: string): string {
+    const p = path.normalize(filepath);
+    if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
+    const ext = path.extname(p);
+    if (ext === '.slasmjson') {
+        return decompile(JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' })));
+    } else if (ext === '.slasmbin') {
+        return decompile(SLASMBin.unpack(fs.readFileSync(p)));
+    } else if (ext === '.slasmz') {
+        return decompile(SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(p))));
+    } else {
+        throw new Error(`decompile supports: .slasmjson, .slasmbin, .slasmz`);
+    }
 }
 
 export default function decompile(parsed: ParsedSLASM): string {
@@ -129,7 +145,7 @@ export default function decompile(parsed: ParsedSLASM): string {
     if (exprStack.length > 0) {
         output.push(';orphaned-stack-items:;');
         for (const item of exprStack) {
-            output.push("   ", item);
+            output.push(item);
         }
     }
 

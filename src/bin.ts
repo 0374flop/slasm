@@ -3,7 +3,7 @@ const [command, ...args] = process.argv.slice(2);
 import slasm from "./interpreter";
 import logger from "./simpledebugger";
 import repl from "./repl";
-import decompile from "./decompiler";
+import decompile, { decompileFile } from "./decompiler";
 import path from 'node:path';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
@@ -52,27 +52,12 @@ if (command == 'eval') {
         console.log(e instanceof Error ? e.message : e);
     }
 } else if (command == 'decompile') {
-    const filepath = path.normalize(args[0]);
-    if (!fs.existsSync(filepath)) {
-        console.log('no such file:', filepath);
-        process.exit(1);
-    }
-    const ext = path.extname(filepath);
-    let parsed;
     try {
-        if (ext === '.slasmjson') {
-            parsed = JSON.parse(fs.readFileSync(filepath, { encoding: 'utf-8' }));
-        } else if (ext === '.slasmbin') {
-            parsed = slasm.SLASMBin.unpack(fs.readFileSync(filepath));
-        } else if (ext === '.slasmz') {
-            parsed = slasm.SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(filepath)));
-        } else {
-            console.log('decompile supports: .slasmjson, .slasmbin, .slasmz');
-            process.exit(1);
-        }
-        const result = decompile(parsed);
+        const result = decompileFile(args[0]);
         if (args.includes('--out')) {
-            const outPath = path.join(path.dirname(filepath), path.basename(filepath, ext) + '.decompiled.slasm');
+            const p = path.normalize(args[0]);
+            const ext = path.extname(p);
+            const outPath = path.join(path.dirname(p), path.basename(p, ext) + '.decompiled.slasm');
             fs.writeFileSync(outPath, result, { encoding: 'utf-8' });
             console.log(outPath);
         } else {
