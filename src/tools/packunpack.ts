@@ -13,14 +13,14 @@ export type InlineModule      = InlineSlasmModule | InlineJsModule;
 export type ParsedSLASM       = [
     Array<string|number>,
     { ip: number; name: string }[],
-    string[],
+    { ip: number; text: string }[],
     ExportEntry[]?,
     ImportEntry[]?,
     InlineModule[]?
 ];
 
 const MAGIC   = 'SLB5';
-const VERSION = 5;
+const VERSION = 6;
 
 const ITEM_UINT   = 0;
 const ITEM_NEG    = 1;
@@ -99,7 +99,7 @@ function buildConstTable(parsed: ParsedSLASM): { table: string[]; index: Record<
 
     addInstr(code);
     labels.forEach(l => add(l.name));
-    comments.forEach(c => add(c));
+    comments.forEach(c => add(c.text));
     exports.forEach(e => add(e.name));
     imports.forEach(i => { add(i.path); add(i.namespace); });
     for (const m of inlineModules) {
@@ -206,7 +206,7 @@ export default class SLASMBin {
         for (const l of labels) { w.uint32le(l.ip); w.varint(index[l.name]); }
 
         w.varint(comments.length);
-        for (const c of comments) w.varint(index[c]);
+        for (const c of comments) { w.uint32le(c.ip); w.varint(index[c.text]); }
 
         w.varint(exports.length);
         for (const e of exports) {
@@ -245,8 +245,16 @@ export default class SLASMBin {
         for (let i = 0; i < labelsLen; i++) labels.push({ ip: r.uint32le(), name: constTable[r.varint()] });
 
         const commentsLen = r.varint();
-        const comments: string[] = [];
-        for (let i = 0; i < commentsLen; i++) comments.push(constTable[r.varint()]);
+        const comments: { ip: number; text: string }[] = [];
+        for (let i = 0; i < commentsLen; i++) {
+            if (version >= 6) {
+                const ip   = r.uint32le();
+                const text = constTable[r.varint()];
+                comments.push({ ip, text });
+            } else {
+                comments.push({ ip: 0, text: constTable[r.varint()] });
+            }
+        }
 
         const exportsLen = r.varint();
         const exports: ExportEntry[] = [];
@@ -325,7 +333,7 @@ export default class SLASMBin {
         let parsedata: ParsedSLASM;
         if (ext === '.slasm') {
             const r = slasm.parse(slasm.tokenize(fs.readFileSync(p, 'utf-8')));
-            parsedata = [r.instructions, r.labels, r.comments.map(c => c.text), r.exports, r.imports];
+            parsedata = [r.instructions, r.labels, r.comments, r.exports, r.imports];
         } else if (ext === '.slasmjson') {
             parsedata = JSON.parse(fs.readFileSync(p, 'utf-8'));
         } else if (ext === '.slasmbin' || ext === '.slasmz') {

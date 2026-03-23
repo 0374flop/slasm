@@ -79,7 +79,7 @@ export default function parse(tokens: string[]): Types.ParseResult {
                 });
 
             } else {
-                comments.push({ ip, text: inner });
+                comments.push({ ip: instructions.length, text: inner });
             }
 
             continue;

@@ -4,48 +4,8 @@ import zlib from 'node:zlib';
 import SLASMBin, { type ParsedSLASM, type ExportEntry, type ImportEntry, type InlineModule } from './packunpack';
 import { isEncrypted, decrypt } from './encrypt';
 
-const ARITY: Record<string, [number, number]> = {
-    'clog':       [1, 0],
-    'cnum':       [0, 1],
-    'cchan':      [2, 0],
-    'cget':       [1, 1],
-    'q':          [0, 1],
-    'W':          [2, 0],
-    'R':          [1, 1],
-    '~':          [2, 1],
-    'JOIN':       [-1, 1],
-    'rep':        [2, 1],
-    'char':       [2, 1],
-    'L':          [2, 1],
-    'gln':        [1, 1],
-    '+':          [2, 1],
-    '-':          [2, 1],
-    '*':          [2, 1],
-    '/':          [2, 1],
-    '=':          [2, 1],
-    '<':          [2, 1],
-    '>':          [2, 1],
-    '!':          [1, 1],
-    'jump':       [1, 0],
-    '?':          [2, 0],
-    'call':       [1, 0],
-    'ret':        [0, 0],
-    'csnum':      [0, 1],
-    'S':          [1, 1],
-    'getstack':   [1, 1],
-    'cstack':     [2, 0],
-    '_':          [0, 1],
-    'clearstack': [0, 0],
-    'i':          [0, 1],
-    'inum':       [0, 1],
-    'iget':       [1, 1],
-    'SO':         [2, 0],
-    '?*':         [2, 1],
-    'begin':      [0, 0],
-    'none':       [0, 0],
-    'wait':       [1, 0],
-    'throw':      [1, 0],
-};
+import _ARITY from '../interpreter/runinstruction/arity.json';
+const ARITY = _ARITY as unknown as Record<string, [number, number]>;
 
 function extractJsArity(source: string): Record<string, [number, number]> {
     const result: Record<string, [number, number]> = {};
@@ -145,7 +105,7 @@ export function decompileFile(filepath: string, key?: string): string {
 }
 
 export default function decompile(parsed: ParsedSLASM, extraArity: Record<string, [number, number]> = {}): string {
-    const [instructions, labels, , exports = []] = parsed;
+    const [instructions, labels, comments = [], exports = [], imports = []] = parsed;
 
     const labelAtIp = new Map<number, string>();
     for (const lbl of labels) {
@@ -157,7 +117,9 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
         exportAtIp.set(e.ip, e);
     }
 
-    const emittedLabels = new Set<number>();
+    const emittedLabels  = new Set<number>();
+    const commentAtIp = new Map<number, string>();
+    for (const c of comments) commentAtIp.set(c.ip, c.text);
 
     const exprStack: string[] = [];
     const output: string[] = [];
@@ -237,7 +199,8 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
         } else {
             for (let ip = statementStartIp; ip <= i + 1; ip++) maybeEmitLabel(ip);
             while (exprStack.length > 0) output.push(exprStack.shift()!);
-            output.push(expr);
+            const comment = commentAtIp.get(i + 1);
+            output.push(comment ? `${expr} ;${comment};` : expr);
         }
 
         i++;
@@ -261,5 +224,7 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
         }
     }
 
-    return output.join('\n');
+    const importLines = imports.map(i => `;+${i.path}:${i.namespace}+;`).join('\n');
+    const body = output.join('\n');
+    return importLines ? importLines + '\n\n' + body : body;
 }
