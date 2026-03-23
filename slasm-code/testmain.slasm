@@ -1,0 +1,11 @@
+﻿;+./mathtest:m+;
+
+10
+5
+(callns "add" "m")
+(clog)
+
+6
+7
+(callns "mul" "m")
+(clog)

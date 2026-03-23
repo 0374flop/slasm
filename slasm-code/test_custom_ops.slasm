@@ -1,0 +1,22 @@
+;+./stdlib:std+;
+
+(clog "=== тест кастомных операторов ===")
+
+(clog (double 7))
+(clog (double 21))
+
+(clog (square 5))
+(clog (square 12))
+
+(clog (max 10 3))
+(clog (max 3 10))
+(clog (max -5 -2))
+
+(clog (abs -42))
+(clog (abs 42))
+
+(clog "=== вложенные вызовы ===")
+
+(clog (double (square 4)))
+(clog (square (double 3)))
+(clog (abs (double -7)))

@@ -1,0 +1,30 @@
+(jump (gln __end__))
+
+;=double:1:1=;
+(* 2)
+(ret)
+
+;=square:1:1=;
+(* (getstack 0))
+(ret)
+
+;=max:2:1=;
+(? (> (getstack 1) (getstack 0)) (gln __max_a__))
+(jump (gln __max_done__))
+;-__max_a__-;
+(getstack 1)
+(jump (gln __max_ret__))
+;-__max_done__-;
+(getstack 0)
+;-__max_ret__-;
+(ret)
+
+;=abs:1:1=;
+(? (< (getstack 0) 0) (gln __abs_neg__))
+(jump (gln __abs_done__))
+;-__abs_neg__-;
+(* -1)
+;-__abs_done__-;
+(ret)
+
+;-__end__-;
