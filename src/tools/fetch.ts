@@ -9,7 +9,7 @@ import tokenize from '../interpreter/tokenize.js';
 import parse from '../interpreter/parse.js';
 import SLASMBin from './packunpack.js';
 
-export const SLASM_LIBS_BASE = 'https://raw.githubusercontent.com/0374flop/slasm-libs/main';
+export const SLASM_LIBS_BASE = 'https://raw.githubusercontent.com/0374flop/slasm/refs/heads/master/slasm-libs';
 export const CACHE_DIR = path.join(os.homedir(), '.slasm', 'cache');
 
 const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
@@ -23,7 +23,11 @@ export function urlToCache(url: string): string {
 export function importToUrl(imp: string): string | null {
     if (imp.startsWith('https://') || imp.startsWith('http://')) return imp;
     const m = imp.match(/^slasm\.(.+)$/);
-    if (m) return `${SLASM_LIBS_BASE}/${m[1]}/index.js`;
+    if (m) {
+        const name = m[1];
+        const hasExt = /\.[a-z]+$/.test(name);
+        return hasExt ? `${SLASM_LIBS_BASE}/${name}` : `${SLASM_LIBS_BASE}/${name}/index.js`;
+    }
     return null;
 }
 

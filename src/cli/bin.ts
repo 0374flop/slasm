@@ -33,7 +33,7 @@ function requireKey(a: string[]): string {
     return readKey(a) ?? readStdin('Enter key: ');
 }
 
-type Command = (args: string[]) => void;
+type Command = (args: string[]) => void | Promise<void>;
 
 const args: string[] = process.argv.slice(2);
 const first: string | undefined = args[0];
@@ -41,12 +41,24 @@ const first: string | undefined = args[0];
 if (args.includes('--update-modules')) process.env.SLASM_UPDATE_MODULES = '1';
 
 const commands: Record<string, Command> = {
-    fetch: (a) => fetchModules(a[0], a.includes('--update')).then(() => {}).catch(e => { console.error(e.message); process.exit(1); }),
+    fetch: async (a) => { await fetchModules(a[0], a.includes('--update')); },
+    'cache-clear': () => {
+        const { CACHE_DIR } = require('../tools/fetch.js');
+        if (fs.existsSync(CACHE_DIR)) {
+            fs.rmSync(CACHE_DIR, { recursive: true, force: true });
+            console.log('cache cleared');
+        } else {
+            console.log('cache is already empty');
+        }
+    },
     run: (a) => run(a[0], readKey(a)),
-    eval: (a) => slasm.eval_slasm(a.join(' ')),
+    eval: (a) => { slasm.eval_slasm(a.join(' ')); },
     repl: () => replLoop(),
     parse: (a) => {
-        const parsedata = slasm.parse(slasm.tokenize(a.join(' ')));
+        const src = fs.existsSync(a[0])
+            ? fs.readFileSync(a[0], { encoding: 'utf-8' })
+            : a.join(' ');
+        const parsedata = slasm.parse(slasm.tokenize(src));
         console.log(prettyParse(parsedata.instructions, parsedata.labels, parsedata.comments));
     },
     pack: (a) => console.log(slasm.SLASMBin.packFile(a[0], a.includes('z'), readKey(a), !a.includes('--nomodules'))),
@@ -76,12 +88,14 @@ commands:
   run <file>
   eval <code>
   repl
-  parse <code>
+  parse <file|code>
   pack <file> [z] [--key[=]<key>]
   unpack <file> [--key[=]<key>]
   encrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
   decrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
-  fetch <file> [--update]
+  fetch <file> [--update]     download remote imports to cache (~/.slasm/cache)
+                              --update  force re-download even if cached
+  cache-clear                 delete all cached modules
   decompile <file> [--out] [--key[=]<key>]
   (if --key is omitted where needed, reads from stdin)
   help`);
@@ -94,20 +108,22 @@ function replLoop(): never {
 
 if (!first) replLoop();
 
-if (first && commands[first]) {
-    try {
-        commands[first](args.slice(1));
-    } catch (e) {
-        console.error(e instanceof Error ? e.message : e);
-        process.exit(1);
+(async () => {
+    if (first && commands[first]) {
+        try {
+            await commands[first](args.slice(1));
+        } catch (e) {
+            console.error(e instanceof Error ? e.message : e);
+            process.exit(1);
+        }
+        process.exit(0);
     }
-    process.exit(0);
-}
 
-if (first && fs.existsSync(first)) {
-    run(first);
-    process.exit(0);
-}
+    if (first && fs.existsSync(first)) {
+        run(first);
+        process.exit(0);
+    }
 
-commands.help([]);
-process.exit(1);
+    commands.help([]);
+    process.exit(1);
+})();

@@ -1,0 +1,3 @@
+;+slasm.test.js:testlib+;
+
+(clog (upper "hello world"))
