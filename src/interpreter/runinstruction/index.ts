@@ -55,7 +55,7 @@ export default function runInstruction(runtime: Runtime): void {
                 if (val === undefined) throw new Error(`${op}: not enough arguments (need ${exp.args})`);
                 argVals.unshift(val);
             }
-            const results = exp.fn(argVals);
+            const results = exp.fn(argVals) ?? [];
             for (const r of results) vm.stack.push(r);
             vm.ip++;
             return;
@@ -103,7 +103,7 @@ export default function runInstruction(runtime: Runtime): void {
                         if (val === undefined) throw new Error(`${op}: not enough arguments (need ${exp.args})`);
                         argVals.unshift(val);
                     }
-                    const results = exp.fn(argVals);
+                    const results = exp.fn(argVals) ?? [];
                     for (const r of results) vm.stack.push(r);
                     vm.ip++;
                     return;
