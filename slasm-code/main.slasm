@@ -1,7 +1,0 @@
-;+./greeting.slasmz:greet+;
-(W greet.1 "World")
-(callns "greet" "greet")
-(clog "done!")
-(W 1 "World2")
-
-(clog (R 1))

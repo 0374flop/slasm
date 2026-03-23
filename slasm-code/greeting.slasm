@@ -1,7 +1,0 @@
-(jump (gln main))
-;=greet:1:0=;
-(clog (~ "Hello from module, " (~ (R 1) "!")))
-(ret)
-;-main-;
-(clog 1234)
-(call (gln greet))

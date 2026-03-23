@@ -45,7 +45,7 @@ const commands: Record<string, Command> = {
         const parsedata = slasm.parse(slasm.tokenize(a.join(' ')));
         console.log(prettyParse(parsedata.instructions, parsedata.labels, parsedata.comments));
     },
-    pack: (a) => console.log(slasm.SLASMBin.packFile(a[0], a.includes('z'), readKey(a))),
+    pack: (a) => console.log(slasm.SLASMBin.packFile(a[0], a.includes('z'), readKey(a), !a.includes('--nomodules'))),
     unpack: (a) => console.log(slasm.SLASMBin.unpackFile(a[0], readKey(a))),
     encrypt: (a) => console.log(encryptFile(a[0], requireKey(a))),
     decrypt: (a) => console.log(decryptFile(a[0], requireKey(a))),

@@ -3,7 +3,9 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import tokenize from './tokenize.js';
 import parse from './parse.js';
+import nodeVm from 'node:vm';
 import { createVM, type Runtime, type NativeExport } from './vm.js';
+import type { InlineModule } from '../tools/packunpack.js';
 import type { ParsedSLASM } from '../tools/packunpack.js';
 import SLASMBin from '../tools/packunpack.js';
 
@@ -17,6 +19,24 @@ function resolve(filepath: string, basedir: string): string {
         if (fs.existsSync(withExt)) return withExt;
     }
     throw new Error(`module not found: ${p}`);
+}
+
+export function loadInlineModules(inlineModules: InlineModule[], runtime: Runtime): void {
+    for (const m of inlineModules) {
+        if (runtime.modules.has(m.namespace) || runtime.nativeModules.has(m.namespace)) continue;
+        if (m.type === 'slasm') {
+            runtime.modules.set(m.namespace, createVM(m.namespace, m.instructions.map(String), m.labels, [], m.exports));
+        } else {
+            const context = { module: { exports: {} as Record<string, NativeExport> }, require };
+            nodeVm.runInNewContext(m.source, context);
+            const exports = new Map<string, NativeExport>();
+            for (const [name, def] of Object.entries(context.module.exports)) {
+                if (typeof def.fn !== 'function') throw new Error(`inline native module '${m.namespace}': export '${name}' missing fn`);
+                exports.set(name, { args: def.args ?? 0, returns: def.returns ?? 0, fn: def.fn });
+            }
+            runtime.nativeModules.set(m.namespace, exports);
+        }
+    }
 }
 
 export function loadModule(filepath: string, namespace: string, runtime: Runtime, basedir: string = ''): void {
