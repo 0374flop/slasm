@@ -8,10 +8,17 @@ import { createVM, type Runtime, type NativeExport } from './vm.js';
 import type { InlineModule } from '../tools/packunpack.js';
 import type { ParsedSLASM } from '../tools/packunpack.js';
 import SLASMBin from '../tools/packunpack.js';
+import { importToUrl, cachedPath } from '../tools/fetch.js';
 
 const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
 
 function resolve(filepath: string, basedir: string): string {
+    const url = importToUrl(filepath);
+    if (url) {
+        const cached = cachedPath(url);
+        if (!cached) throw new Error(`module '${filepath}' not cached — run: slasm fetch <file>`);
+        return cached;
+    }
     const p = path.resolve(basedir, filepath);
     if (fs.existsSync(p)) return p;
     for (const ext of EXTENSIONS) {

@@ -8,6 +8,7 @@ import run from "../tools/run";
 import { decompileFile } from "../tools/decompiler";
 import prettyParse from "./prettyparse";
 import { encryptFile, decryptFile } from "../tools/encrypt";
+import fetchModules from "../tools/fetch";
 
 function readStdin(prompt: string): string {
     process.stderr.write(prompt);
@@ -37,7 +38,10 @@ type Command = (args: string[]) => void;
 const args: string[] = process.argv.slice(2);
 const first: string | undefined = args[0];
 
+if (args.includes('--update-modules')) process.env.SLASM_UPDATE_MODULES = '1';
+
 const commands: Record<string, Command> = {
+    fetch: (a) => fetchModules(a[0], a.includes('--update')).then(() => {}).catch(e => { console.error(e.message); process.exit(1); }),
     run: (a) => run(a[0], readKey(a)),
     eval: (a) => slasm.eval_slasm(a.join(' ')),
     repl: () => replLoop(),
@@ -77,6 +81,7 @@ commands:
   unpack <file> [--key[=]<key>]
   encrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
   decrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
+  fetch <file> [--update]
   decompile <file> [--out] [--key[=]<key>]
   (if --key is omitted where needed, reads from stdin)
   help`);
