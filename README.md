@@ -22,13 +22,17 @@ commands:
   run <file>
   eval <code>
   repl
-  parse <code>
+  parse <file|code>
   pack <file> [z] [--key[=]<key>]
   unpack <file> [--key[=]<key>]
   encrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
   decrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
+  fetch <file> [--update]     download remote imports to cache (~/.slasm/cache)
+                              --update  force re-download even if cached
+  cache-clear                 delete all cached modules
   decompile <file> [--out] [--key[=]<key>]
   (if --key is omitted where needed, reads from stdin)
+
   help
 ```
 
