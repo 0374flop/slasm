@@ -60,5 +60,5 @@ module.exports = {
     timestamp: {
         args: 0, returns: 1,
         fn: () => [new Date().toISOString()]
-    },
+    }
 };

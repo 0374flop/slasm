@@ -10,14 +10,62 @@ import parse from '../interpreter/parse.js';
 import SLASMBin from './packunpack.js';
 
 export const SLASM_LIBS_BASE = 'https://raw.githubusercontent.com/0374flop/slasm/refs/heads/master/slasm-libs';
-export const CACHE_DIR = path.join(os.homedir(), '.slasm', 'cache');
+export const GLOBAL_CACHE_DIR = path.join(os.homedir(), '.slasm', 'cache');
+export const CACHE_DIR = GLOBAL_CACHE_DIR;
+
+export const SLASM_JSON  = 'slasm.json';
+export const MODULES_DIR = 'slasm_modules';
 
 const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
+
+export interface SlasmJson {
+    name?: string;
+    main?: string;
+    modules: Record<string, string>;
+}
+
+export function findProjectRoot(from: string): string | null {
+    let dir = path.resolve(from);
+    while (true) {
+        if (fs.existsSync(path.join(dir, SLASM_JSON))) return dir;
+        const parent = path.dirname(dir);
+        if (parent === dir) return null;
+        dir = parent;
+    }
+}
+
+export function readSlasmJson(root: string): SlasmJson {
+    const p = path.join(root, SLASM_JSON);
+    if (!fs.existsSync(p)) return { modules: {} };
+    try { return JSON.parse(fs.readFileSync(p, 'utf-8')); }
+    catch { return { modules: {} }; }
+}
+
+export function writeSlasmJson(root: string, data: SlasmJson): void {
+    fs.writeFileSync(path.join(root, SLASM_JSON), JSON.stringify(data, null, 2) + '\n', 'utf-8');
+}
+
+export function initProject(dir: string, name?: string): void {
+    const jsonPath = path.join(dir, SLASM_JSON);
+    if (fs.existsSync(jsonPath)) {
+        console.log('slasm.json already exists');
+        return;
+    }
+    const data: SlasmJson = {
+        name: name ?? path.basename(dir),
+        main: 'main.slasm',
+        modules: {},
+    };
+    fs.mkdirSync(dir, { recursive: true });
+    writeSlasmJson(dir, data);
+    console.log(`initialised slasm project: ${path.resolve(dir)}`);
+    console.log(`  created ${SLASM_JSON}`);
+}
 
 export function urlToCache(url: string): string {
     const hash = crypto.createHash('sha1').update(url).digest('hex');
     const ext  = path.extname(new URL(url).pathname) || '.js';
-    return path.join(CACHE_DIR, hash + ext);
+    return path.join(GLOBAL_CACHE_DIR, hash + ext);
 }
 
 export function importToUrl(imp: string): string | null {
@@ -31,7 +79,29 @@ export function importToUrl(imp: string): string | null {
     return null;
 }
 
-export function cachedPath(url: string): string | null {
+export function cachedPath(url: string, projectRoot?: string | null): string | null {
+    const root = projectRoot ?? findProjectRoot(process.cwd());
+    if (root) {
+        const data = readSlasmJson(root);
+        const rel  = data.modules[url];
+        if (rel) {
+            const abs = path.join(root, rel);
+            if (fs.existsSync(abs)) return abs;
+        }
+        const globalPath = urlToCache(url);
+        if (fs.existsSync(globalPath)) {
+            const ext  = path.extname(new URL(url).pathname) || '.js';
+            const hash = crypto.createHash('sha1').update(url).digest('hex');
+            const rel2 = path.join(MODULES_DIR, hash + ext).replace(/\\/g, '/');
+            const abs2 = path.join(root, rel2);
+            fs.mkdirSync(path.dirname(abs2), { recursive: true });
+            fs.copyFileSync(globalPath, abs2);
+            const data2 = readSlasmJson(root);
+            data2.modules[url] = rel2;
+            writeSlasmJson(root, data2);
+            return abs2;
+        }
+    }
     const p = urlToCache(url);
     return fs.existsSync(p) ? p : null;
 }
@@ -57,17 +127,44 @@ async function fetchUrl(url: string, timeoutMs = 10000): Promise<Buffer> {
     });
 }
 
-async function downloadUrl(url: string, forceUpdate: boolean): Promise<string> {
+async function downloadUrl(url: string, forceUpdate: boolean, projectRoot?: string | null): Promise<string> {
+    const root = projectRoot ?? null;
+    let localPath: string | null = null;
+
+    if (root) {
+        const data = readSlasmJson(root);
+        if (!forceUpdate && data.modules[url]) {
+            const abs = path.join(root, data.modules[url]);
+            if (fs.existsSync(abs)) return abs;
+        }
+        const ext  = path.extname(new URL(url).pathname) || '.js';
+        const hash = crypto.createHash('sha1').update(url).digest('hex');
+        const rel  = path.join(MODULES_DIR, hash + ext);
+        localPath  = path.join(root, rel);
+        fs.mkdirSync(path.dirname(localPath), { recursive: true });
+
+        const data2 = readSlasmJson(root);
+        data2.modules[url] = rel.replace(/\\/g, '/');
+        writeSlasmJson(root, data2);
+    }
+
     const cachePath = urlToCache(url);
-    if (!forceUpdate && fs.existsSync(cachePath)) return cachePath;
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    if (!forceUpdate && !localPath && fs.existsSync(cachePath)) return cachePath;
+
+    fs.mkdirSync(GLOBAL_CACHE_DIR, { recursive: true });
     const data = await fetchUrl(url);
+
     fs.writeFileSync(cachePath + '.tmp', data);
     fs.renameSync(cachePath + '.tmp', cachePath);
-    return cachePath;
+
+    if (localPath) {
+        fs.writeFileSync(localPath, data);
+    }
+
+    return localPath ?? cachePath;
 }
 
-function collectImports(filepath: string, basedir: string, seen = new Set<string>()): string[] {
+export function collectImports(filepath: string, basedir: string, seen = new Set<string>()): string[] {
     const abs = path.resolve(basedir, filepath);
     if (seen.has(abs)) return [];
     seen.add(abs);
@@ -119,19 +216,26 @@ export default async function fetchModules(filepath: string, forceUpdate = false
         return;
     }
 
+    const projectRoot = findProjectRoot(path.dirname(abs));
+    if (projectRoot) {
+        console.log(`project root: ${projectRoot}`);
+    }
+
     const unique = [...new Set(urls)];
     console.log(`fetching ${unique.length} module(s)...`);
 
     let ok = 0, fail = 0;
     await Promise.all(unique.map(async (url) => {
-        const short = url.replace('https://raw.githubusercontent.com/0374flop/slasm-libs/main/', 'slasm:');
+        const short = url.replace('https://raw.githubusercontent.com/0374flop/slasm/refs/heads/master/slasm-libs/', 'slasm:');
         try {
-            const cached = !forceUpdate && fs.existsSync(urlToCache(url));
-            if (cached) {
-                console.log(`  cached  ${short}`);
+            const existing = !forceUpdate && cachedPath(url, projectRoot);
+            if (existing) {
+                const isLocal = projectRoot && existing.startsWith(projectRoot);
+                console.log(`  cached  ${short}${isLocal ? ' (local)' : ''}`);
             } else {
-                await downloadUrl(url, forceUpdate);
-                console.log(`  fetched ${short}`);
+                await downloadUrl(url, forceUpdate, projectRoot);
+                const isLocal = !!projectRoot;
+                console.log(`  fetched ${short}${isLocal ? ' → slasm_modules/' : ''}`);
             }
             ok++;
         } catch (e) {
@@ -142,4 +246,38 @@ export default async function fetchModules(filepath: string, forceUpdate = false
 
     console.log(`\ndone: ${ok} ok, ${fail} failed`);
     if (fail > 0) process.exit(1);
+}
+
+export async function installModules(urls: string[], forceUpdate = false): Promise<void> {
+    const projectRoot = findProjectRoot(process.cwd());
+    const unique = [...new Set(urls)];
+    console.log(`installing ${unique.length} module(s)...`);
+    if (projectRoot) console.log(`project root: ${projectRoot}`);
+
+    let ok = 0, fail = 0;
+    await Promise.all(unique.map(async (url) => {
+        const short = url.replace('https://raw.githubusercontent.com/0374flop/slasm/refs/heads/master/slasm-libs/', 'slasm:');
+        try {
+            await downloadUrl(url, forceUpdate, projectRoot);
+            console.log(`  installed ${short}`);
+            ok++;
+        } catch (e) {
+            console.error(`  failed  ${short} — ${(e as Error).message}`);
+            fail++;
+        }
+    }));
+
+    console.log(`\ndone: ${ok} ok, ${fail} failed`);
+    if (fail > 0) process.exit(1);
+}
+
+export function clearLocalModules(projectRoot: string): void {
+    const modulesDir = path.join(projectRoot, MODULES_DIR);
+    if (fs.existsSync(modulesDir)) {
+        fs.rmSync(modulesDir, { recursive: true, force: true });
+    }
+    const data = readSlasmJson(projectRoot);
+    data.modules = {};
+    writeSlasmJson(projectRoot, data);
+    console.log('local modules cleared');
 }

@@ -1,0 +1,7 @@
+{
+  "name": "slasm-code",
+  "main": "main.slasm",
+  "modules": {
+    "https://raw.githubusercontent.com/0374flop/slasm/refs/heads/master/slasm-libs/test.js": "slasm_modules/ee9d02afab2f1c44658b178588489ec2d65f13de.js"
+  }
+}

@@ -3,6 +3,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import slasm from '../interpreter';
 import { isEncrypted, decrypt } from './encrypt';
+import { checkMissingModules } from '../interpreter/loader';
 
 export default function run(filepath: string, key?: string) {
     const p = path.resolve(filepath);
@@ -11,6 +12,7 @@ export default function run(filepath: string, key?: string) {
         return;
     }
     const ext = path.extname(p);
+    checkMissingModules(p);
 
     if (ext == '.slasm') {
         slasm.eval_slasm(fs.readFileSync(p, { encoding: 'utf-8' }), p);

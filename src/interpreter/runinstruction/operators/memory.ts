@@ -4,16 +4,16 @@ type Handler = (rt: Runtime) => void;
 
 const vm = (rt: Runtime) => rt.modules.get(rt.current)!;
 
-function parseCell(rt: Runtime, raw: string): [Map<number, string>, number] {
+function parseCell(rt: Runtime, raw: string): [Map<string, string>, string] {
     const dot = raw.indexOf('.');
     if (dot !== -1) {
         const ns  = raw.slice(0, dot);
-        const n   = Number(raw.slice(dot + 1));
+        const key = raw.slice(dot + 1);
         const mod = rt.modules.get(ns);
         if (!mod) throw new Error(`W/R: module '${ns}' not loaded`);
-        return [mod.memory, n];
+        return [mod.memory, key];
     }
-    return [vm(rt).memory, Number(raw)];
+    return [vm(rt).memory, raw];
 }
 
 export const memory: Map<string, Handler> = new Map([
@@ -21,15 +21,15 @@ export const memory: Map<string, Handler> = new Map([
         const v   = vm(rt);
         const val = v.stack.pop() ?? '';
         const raw = v.stack.pop() ?? '';
-        const [mem, n] = parseCell(rt, raw);
-        mem.set(n, val);
+        const [mem, key] = parseCell(rt, raw);
+        mem.set(key, val);
         v.ip++;
     }],
     ['R', (rt) => {
         const v   = vm(rt);
         const raw = v.stack.pop() ?? '';
-        const [mem, n] = parseCell(rt, raw);
-        v.stack.push(mem.get(n) ?? '0');
+        const [mem, key] = parseCell(rt, raw);
+        v.stack.push(mem.get(key) ?? '0');
         v.ip++;
     }],
 ]);

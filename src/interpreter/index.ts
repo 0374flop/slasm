@@ -1,6 +1,7 @@
 import path from 'node:path';
 import parse from './parse.js';
 import tokenize from './tokenize.js';
+import preprocess from './preprocess.js';
 import evaluate from './evaluate.js';
 import logger from '../output.js';
 import SLASMBin from '../tools/packunpack.js';
@@ -13,14 +14,15 @@ export type { ParseResult, label, comment, directive, exportDef, importDef } fro
 export type { VM, Runtime, CallFrame } from './vm.js';
 
 function eval_slasm(program: string, filepath?: string) {
-    const tokens = tokenize(program);
-    const result = parse(tokens);
+    const result = parse(tokenize(program));
+    const instructions = preprocess(result.instructions);
     const basedir = filepath ? path.dirname(path.resolve(filepath)) : process.cwd();
-    return evaluate(result.instructions, result.labels, result.directives, [], result.imports, basedir, result.exports);
+    return evaluate(instructions, result.labels, result.directives, [], result.imports, basedir, result.exports);
 }
 
 const slasm = {
     parse,
+    preprocess,
     logger,
     tokenize,
     evaluate,

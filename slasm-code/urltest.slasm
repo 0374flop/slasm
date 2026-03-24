@@ -1,3 +1,12 @@
 ;+slasm.test.js:testlib+;
 
+(jump (gln main))
+
+;=CUM:1:0=;
+(clog 12344321)
+(ret)
+
+;-main-;
 (clog (upper "hello world"))
+(CUM "hello world")
+(clog)

@@ -3,21 +3,36 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import tokenize from './tokenize.js';
 import parse from './parse.js';
+import preprocess from './preprocess.js';
 import nodeVm from 'node:vm';
 import { createVM, type Runtime, type NativeExport } from './vm.js';
 import type { InlineModule } from '../tools/packunpack.js';
 import type { ParsedSLASM } from '../tools/packunpack.js';
 import SLASMBin from '../tools/packunpack.js';
-import { importToUrl, cachedPath } from '../tools/fetch.js';
+import { importToUrl, cachedPath, findProjectRoot, collectImports } from '../tools/fetch.js';
 import { isEncrypted, decrypt } from '../tools/encrypt.js';
 
 const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
 
+export function checkMissingModules(filepath: string): void {
+    const abs = filepath.endsWith('.slasm') || filepath.endsWith('.slasmbin') || filepath.endsWith('.slasmz') || filepath.endsWith('.slasmjson')
+        ? filepath
+        : filepath;
+    const projectRoot = findProjectRoot(path.dirname(abs));
+    const urls = collectImports(abs, path.dirname(abs));
+    const missing = [...new Set(urls)].filter(u => !cachedPath(u, projectRoot));
+    if (missing.length > 0) {
+        const args = missing.join(' ');
+        throw new Error(`missing modules, run:\n  slasm install ${args}`);
+    }
+}
+
 function resolve(filepath: string, basedir: string): string {
     const url = importToUrl(filepath);
     if (url) {
-        const cached = cachedPath(url);
-        if (!cached) throw new Error(`module '${filepath}' not cached — run: slasm fetch <file>`);
+        const projectRoot = findProjectRoot(basedir);
+        const cached = cachedPath(url, projectRoot);
+        if (!cached) throw new Error(`module '${filepath}' not installed — run: slasm install ${url}`);
         return cached;
     }
     const p = path.resolve(basedir, filepath);
@@ -71,7 +86,7 @@ export function loadModule(filepath: string, namespace: string, runtime: Runtime
     } else if (ext === '.slasm') {
         const code = fs.readFileSync(resolved, { encoding: 'utf-8' });
         const result = parse(tokenize(code));
-        instructions = result.instructions;
+        instructions = preprocess(result.instructions);
         labels = result.labels;
         runtime.modules.set(namespace, createVM(namespace, instructions, labels, [], result.exports));
     } else if (ext === '.slasmjson') {

@@ -8,7 +8,7 @@ import run from "../tools/run";
 import { decompileFile } from "../tools/decompiler";
 import prettyParse from "./prettyparse";
 import { encryptFile, decryptFile } from "../tools/encrypt";
-import fetchModules from "../tools/fetch";
+import fetchModules, { initProject, findProjectRoot, readSlasmJson, installModules, clearLocalModules } from "../tools/fetch";
 
 function readStdin(prompt: string): string {
     process.stderr.write(prompt);
@@ -41,7 +41,38 @@ const first: string | undefined = args[0];
 if (args.includes('--update-modules')) process.env.SLASM_UPDATE_MODULES = '1';
 
 const commands: Record<string, Command> = {
-    fetch: async (a) => { await fetchModules(a[0], a.includes('--update')); },
+    init: (a) => { initProject(a[0] ?? process.cwd(), a[1]); },
+    install: async (a) => {
+        const forceUpdate = a.includes('--update');
+        const urls = a.filter(x => !x.startsWith('--'));
+        if (urls.length === 0) {
+            const root = findProjectRoot(process.cwd());
+            if (!root) throw new Error('no slasm.json found — run: slasm init');
+            const json = readSlasmJson(root);
+            const existing = Object.keys(json.modules);
+            if (existing.length === 0) { console.log('nothing to install'); return; }
+            await installModules(existing, forceUpdate);
+        } else {
+            await installModules(urls, forceUpdate);
+        }
+    },
+    fetch: async (a) => {
+        const forceUpdate = a.includes('--update');
+        if (a[0] && !a[0].startsWith('--')) {
+            await fetchModules(a[0], forceUpdate);
+            return;
+        }
+        const root = findProjectRoot(process.cwd());
+        if (!root) throw new Error('no slasm.json found — run: slasm init');
+        const json = readSlasmJson(root);
+        if (!json.main) throw new Error('no "main" field in slasm.json');
+        await fetchModules(path.join(root, json.main), forceUpdate);
+    },
+    'modules-clear': () => {
+        const root = findProjectRoot(process.cwd());
+        if (!root) throw new Error('no slasm.json found — run: slasm init');
+        clearLocalModules(root);
+    },
     'cache-clear': () => {
         const { CACHE_DIR } = require('../tools/fetch.js');
         if (fs.existsSync(CACHE_DIR)) {
@@ -51,7 +82,16 @@ const commands: Record<string, Command> = {
             console.log('cache is already empty');
         }
     },
-    run: (a) => run(a[0], readKey(a)),
+    run: (a) => {
+        const key = readKey(a);
+        const file = a.find(x => !x.startsWith('--') && !x.startsWith('--key'));
+        if (file) { run(file, key); return; }
+        const root = findProjectRoot(process.cwd());
+        if (!root) throw new Error('no slasm.json found — run: slasm init');
+        const json = readSlasmJson(root);
+        if (!json.main) throw new Error('no "main" field in slasm.json');
+        run(path.join(root, json.main), key);
+    },
     eval: (a) => { slasm.eval_slasm(a.join(' ')); },
     repl: () => replLoop(),
     parse: (a) => {
@@ -88,12 +128,19 @@ commands:
   run <file>
   eval <code>
   repl
+  init [dir] [name]           create slasm.json in directory (default: cwd)
+  install [url...]            install modules listed in args into slasm_modules/
+                              no args — reinstalls all from slasm.json
+                              --update  force re-download
+  modules-clear               delete slasm_modules/ and clear modules in slasm.json
   parse <file|code>
   pack <file> [z] [--key[=]<key>]
   unpack <file> [--key[=]<key>]
   encrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
   decrypt <file.slasmbin|.slasmz> [--key[=]<key>]  (overwrites in-place)
-  fetch <file> [--update]     download remote imports to cache (~/.slasm/cache)
+  fetch <file> [--update]     download remote imports
+                              if slasm.json exists → saves to slasm_modules/ + updates json
+                              otherwise → global cache only (~/.slasm/cache)
                               --update  force re-download even if cached
   cache-clear                 delete all cached modules
   decompile <file> [--out] [--key[=]<key>]

@@ -6,7 +6,7 @@ export type VM = {
     labels:       label[];
     exports:      exportDef[];
     stack:        string[];
-    memory:       Map<number, string>;
+    memory:       Map<string, string>;
     ip:           number;
     directives:   directive[];
 };
@@ -45,7 +45,7 @@ export function createVM(
         labels,
         exports,
         stack:     [],
-        memory:    new Map(),
+        memory:    new Map<string, string>(),
         ip:        0,
         directives,
     };
