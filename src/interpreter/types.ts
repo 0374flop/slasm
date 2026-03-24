@@ -23,6 +23,7 @@ export type exportDef = {
 export type importDef = {
     path:      string;
     namespace: string;
+    key?:      string;
 }
 
 export type ParseResult = {

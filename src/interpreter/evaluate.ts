@@ -20,7 +20,7 @@ export default function evaluate(
     loadInlineModules(inlineModules, runtime);
 
     for (const imp of imports) {
-        loadModule(imp.path, imp.namespace, runtime, basedir);
+        loadModule(imp.path, imp.namespace, runtime, basedir, imp.key);
     }
 
     const vm = runtime.modules.get('master')!;

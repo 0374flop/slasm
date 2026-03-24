@@ -1,14 +1,10 @@
 const fs = require('fs')
-// Нативный JS модуль для SLASM
-// Каждый экспорт: { args, returns, fn }
-const fn = ([vaule]) => {
-    fs.writeFileSync('testttttttt', vaule)
-}
+// { args, returns, fn }
 module.exports = {
     file: {
-        args: 1, returns: 0, fn: fn
+        args: 1, returns: 0,
+        fn: ([vaule]) => { fs.writeFileSync('testttttttt', vaule) }
     },
-    // Строки
     upper: {
         args: 1, returns: 1,
         fn: ([s]) => [s.toUpperCase()]
@@ -33,8 +29,6 @@ module.exports = {
         args: 3, returns: 1,
         fn: ([s, from, to]) => [s.replaceAll(from, to)]
     },
-
-    // Числа
     pow: {
         args: 2, returns: 1,
         fn: ([base, exp]) => [String(Math.pow(Number(base), Number(exp)))]
@@ -59,8 +53,6 @@ module.exports = {
         args: 0, returns: 1,
         fn: () => [String(Math.random())]
     },
-
-    // Время
     now: {
         args: 0, returns: 1,
         fn: () => [String(Date.now())]

@@ -9,6 +9,7 @@ import type { InlineModule } from '../tools/packunpack.js';
 import type { ParsedSLASM } from '../tools/packunpack.js';
 import SLASMBin from '../tools/packunpack.js';
 import { importToUrl, cachedPath } from '../tools/fetch.js';
+import { isEncrypted, decrypt } from '../tools/encrypt.js';
 
 const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
 
@@ -46,7 +47,7 @@ export function loadInlineModules(inlineModules: InlineModule[], runtime: Runtim
     }
 }
 
-export function loadModule(filepath: string, namespace: string, runtime: Runtime, basedir: string = ''): void {
+export function loadModule(filepath: string, namespace: string, runtime: Runtime, basedir: string = '', key?: string): void {
     if (runtime.modules.has(namespace)) return;
 
     const resolved = resolve(filepath, basedir || process.cwd());
@@ -79,12 +80,22 @@ export function loadModule(filepath: string, namespace: string, runtime: Runtime
         labels = lbls;
         runtime.modules.set(namespace, createVM(namespace, instructions, labels));
     } else if (ext === '.slasmbin') {
-        const [instr, lbls] = SLASMBin.unpack(fs.readFileSync(resolved));
+        let raw = fs.readFileSync(resolved);
+        if (isEncrypted(raw)) {
+            if (!key) throw new Error(`module '${filepath}' is encrypted, provide key: ;+path:key:namespace+;`);
+            raw = decrypt(raw, key);
+        }
+        const [instr, lbls] = SLASMBin.unpack(raw);
         instructions = instr.map(String);
         labels = lbls;
         runtime.modules.set(namespace, createVM(namespace, instructions, labels));
     } else {
-        const [instr, lbls] = SLASMBin.unpack(zlib.inflateSync(fs.readFileSync(resolved)));
+        let raw = fs.readFileSync(resolved);
+        if (isEncrypted(raw)) {
+            if (!key) throw new Error(`module '${filepath}' is encrypted, provide key: ;+path:key:namespace+;`);
+            raw = decrypt(raw, key);
+        }
+        const [instr, lbls] = SLASMBin.unpack(zlib.inflateSync(raw));
         instructions = instr.map(String);
         labels = lbls;
         runtime.modules.set(namespace, createVM(namespace, instructions, labels));

@@ -59,11 +59,17 @@ export default function parse(tokens: string[]): Types.ParseResult {
 
             } else if (marker === '+' && markerEnd === '+') {
                 const body = inner.slice(1, inner.length - 1).trim();
-                const colonIdx = body.lastIndexOf(':');
-                if (colonIdx !== -1) {
+                const parts = body.split(':');
+                if (parts.length === 3) {
                     imports.push({
-                        path:      body.slice(0, colonIdx).trim(),
-                        namespace: body.slice(colonIdx + 1).trim(),
+                        path:      parts[0].trim(),
+                        key:       parts[1].trim(),
+                        namespace: parts[2].trim(),
+                    });
+                } else if (parts.length === 2) {
+                    imports.push({
+                        path:      parts[0].trim(),
+                        namespace: parts[1].trim(),
                     });
                 } else {
                     const ns = body.trim().split('/').pop()?.replace(/\.\w+$/, '') ?? body;
