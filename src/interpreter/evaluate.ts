@@ -1,8 +1,10 @@
+import path from 'node:path';
 import type { label, directive, importDef, exportDef } from './types.js';
 import { createRuntime } from './vm.js';
 import { loadModule, loadInlineModules } from './loader.js';
 import type { InlineModule } from '../tools/packunpack.js';
 import runInstruction from './runinstruction/index.js';
+import { SlasmProcess } from './process.js';
 
 export default function evaluate(
     instructions:  string[],
@@ -13,21 +15,37 @@ export default function evaluate(
     basedir:       string         = process.cwd(),
     exports:       exportDef[]    = [],
     inlineModules: InlineModule[] = [],
-): string[] {
-    const runtime = createRuntime(instructions, labels, directives, exports);
+    inputQueue:    string[] | null = null,
+): SlasmProcess {
+    const proc = new SlasmProcess();
+
+    const runtime = createRuntime(instructions, labels, directives, exports, proc, inputQueue);
     runtime.clog = clog;
 
-    loadInlineModules(inlineModules, runtime);
+    const run = async () => {
+        await loadInlineModules(inlineModules, runtime);
+        for (const imp of imports) {
+            await loadModule(imp.path, imp.namespace, runtime, basedir, imp.key);
+        }
 
-    for (const imp of imports) {
-        loadModule(imp.path, imp.namespace, runtime, basedir, imp.key);
-    }
+        const vm = runtime.modules.get('master')!;
+        while (vm.ip < vm.instructions.length) {
+            if (runtime.killed) break;
+            await runInstruction(runtime);
+        }
 
-    const vm = runtime.modules.get('master')!;
+        proc.emit('done', runtime.clog);
+        return runtime.clog;
+    };
 
-    while (vm.ip < vm.instructions.length) {
-        runInstruction(runtime);
-    }
+    const promise = run();
+    promise.catch(err => {
+        const e = err instanceof Error ? err : new Error(String(err));
+        proc.emit('error', e);
+    });
 
-    return runtime.clog;
+    proc.result = promise;
+    proc.kill = () => { runtime.killed = true; };
+
+    return proc;
 }

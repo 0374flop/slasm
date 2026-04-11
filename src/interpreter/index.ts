@@ -12,12 +12,13 @@ import { encrypt, decrypt, encryptFile, decryptFile, isEncrypted } from '../tool
 export type { ParsedSLASM, ExportEntry } from '../tools/packunpack.js';
 export type { ParseResult, label, comment, directive, exportDef, importDef } from './types.js';
 export type { VM, Runtime, CallFrame } from './vm.js';
+export { SlasmProcess } from './process.js';
 
-function eval_slasm(program: string, filepath?: string) {
+function eval_slasm(program: string, filepath?: string, inputQueue: string[] | null = null) {
     const result = parse(tokenize(program));
     const instructions = preprocess(result.instructions);
     const basedir = filepath ? path.dirname(path.resolve(filepath)) : process.cwd();
-    return evaluate(instructions, result.labels, result.directives, [], result.imports, basedir, result.exports);
+    return evaluate(instructions, result.labels, result.directives, [], result.imports, basedir, result.exports, [], inputQueue);
 }
 
 const slasm = {
@@ -36,5 +37,6 @@ const slasm = {
     encryptFile,
     decryptFile,
     isEncrypted,
-}
+};
+
 export default slasm;

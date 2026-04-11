@@ -1,8 +1,7 @@
 import logger from '../../../output.js';
-import { readlineSync } from '../../../readline.js';
 import type { Runtime } from '../../vm.js';
 
-type Handler = (rt: Runtime) => void;
+type Handler = (rt: Runtime) => void | Promise<void>;
 
 const vm = (rt: Runtime) => rt.modules.get(rt.current)!;
 
@@ -12,6 +11,7 @@ export const io: Map<string, Handler> = new Map([
         const val = v.stack.pop() ?? '';
         rt.clog.push(val);
         logger.clog(val);
+        rt.emitter.emit('output', val);
         v.ip++;
     }],
     ['cnum', (rt) => {
@@ -34,9 +34,19 @@ export const io: Map<string, Handler> = new Map([
         v.stack.push(rt.clog[n]);
         v.ip++;
     }],
-    ['q', (rt) => {
+    ['q', async (rt) => {
         const v = vm(rt);
-        v.stack.push(readlineSync());
+        if (rt.inputQueue !== null) {
+            if (rt.inputQueue.length === 0) {
+                throw new Error('q: input queue exhausted');
+            }
+            v.stack.push(rt.inputQueue.shift()!);
+        } else {
+            const value = await new Promise<string>((resolve) => {
+                rt.emitter.emit('input', resolve);
+            });
+            v.stack.push(value);
+        }
         v.ip++;
     }],
 ]);

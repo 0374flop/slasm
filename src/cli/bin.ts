@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import slasm from "../interpreter";
 import repl from "./repl";
+import type { SlasmProcess } from "../interpreter/process";
 import run from "../tools/run";
 import { decompileFile } from "../tools/decompiler";
 import prettyParse from "./prettyparse";
@@ -92,7 +93,15 @@ const commands: Record<string, Command> = {
         if (!json.main) throw new Error('no "main" field in slasm.json');
         run(path.join(root, json.main), key);
     },
-    eval: (a) => { slasm.eval_slasm(a.join(' ')); },
+    eval: async (a) => {
+        const proc = slasm.eval_slasm(a.join(' '));
+        proc.on('input', (reply) => {
+            const buf = Buffer.alloc(1024);
+            const n = require('node:fs').readSync(0, buf, 0, buf.length, null);
+            reply(buf.slice(0, n).toString().replace(/\r?\n$/, ''));
+        });
+        await proc.result;
+    },
     repl: () => replLoop(),
     parse: (a) => {
         const src = fs.existsSync(a[0])
@@ -149,8 +158,9 @@ commands:
     }
 };
 
-function replLoop(): never {
-    while (true) repl();
+async function replLoop(): Promise<never> {
+    await repl();
+    process.exit(0);
 }
 
 if (!first) replLoop();

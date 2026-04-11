@@ -1,6 +1,6 @@
 import type { Runtime } from '../../vm.js';
 
-type Handler = (rt: Runtime) => void;
+type Handler = (rt: Runtime) => void | Promise<void>;
 
 const vm = (rt: Runtime) => rt.modules.get(rt.current)!;
 

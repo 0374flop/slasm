@@ -1,4 +1,5 @@
 import type { label, directive, exportDef } from './types.js';
+import type { SlasmProcess } from './process.js';
 
 export type VM = {
     namespace:    string;
@@ -30,6 +31,9 @@ export type Runtime = {
     clog:          string[];
     callstack:     CallFrame[];
     current:       string;
+    emitter:       SlasmProcess;
+    inputQueue:    string[] | null;
+    killed:        boolean;
 };
 
 export function createVM(
@@ -56,6 +60,8 @@ export function createRuntime(
     labels:       label[],
     directives:   directive[] = [],
     exports:      exportDef[] = [],
+    emitter:      SlasmProcess,
+    inputQueue:   string[] | null = null,
 ): Runtime {
     const master = createVM('master', instructions, labels, directives, exports);
     return {
@@ -64,5 +70,8 @@ export function createRuntime(
         clog:          [],
         callstack:     [],
         current:       'master',
+        emitter,
+        inputQueue,
+        killed:        false,
     };
 }

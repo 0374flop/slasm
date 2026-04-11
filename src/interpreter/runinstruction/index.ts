@@ -8,7 +8,9 @@ import { control }    from './operators/control.js';
 import { introspect } from './operators/introspect.js';
 import { misc }       from './operators/misc.js';
 
-const handlers: Map<string, (rt: Runtime) => void> = new Map([
+type Handler = (rt: Runtime) => void | Promise<void>;
+
+const handlers: Map<string, Handler> = new Map([
     ['push', (rt) => {
         const v = rt.modules.get(rt.current)!;
         v.ip++;
@@ -26,12 +28,12 @@ const handlers: Map<string, (rt: Runtime) => void> = new Map([
     ...misc,
 ]);
 
-export default function runInstruction(runtime: Runtime): void {
+export default async function runInstruction(runtime: Runtime): Promise<void> {
     const vm = runtime.modules.get(runtime.current)!;
     const op = vm.instructions[vm.ip];
 
     const handler = handlers.get(op);
-    if (handler) { handler(runtime); return; }
+    if (handler) { await handler(runtime); return; }
 
     let targetNs: string | undefined;
     let targetIp: number | undefined;

@@ -1,6 +1,6 @@
 import type { Runtime } from '../../vm.js';
 
-type Handler = (rt: Runtime) => void;
+type Handler = (rt: Runtime) => void | Promise<void>;
 
 const vm = (rt: Runtime) => rt.modules.get(rt.current)!;
 
@@ -12,11 +12,10 @@ export const misc: Map<string, Handler> = new Map([
         v.stack.push(String(Math.floor(Math.random() * (max - min + 1)) + min));
         v.ip++;
     }],
-    ['wait', (rt) => {
+    ['wait', async (rt) => {
         const v  = vm(rt);
         const ms = Number(v.stack.pop());
-        const end = Date.now() + ms;
-        while (Date.now() < end) {}
+        await new Promise<void>(r => setTimeout(r, ms));
         v.ip++;
     }],
     ['throw', (rt) => {

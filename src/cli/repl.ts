@@ -1,19 +1,29 @@
-import { readlineSync } from '../readline.js';
-import slasm from '../interpreter';
+import readline from 'node:readline';
+import slasm from '../interpreter/index.js';
 
-export default function repl() {
-    const code = readlineSync('> ');
-    if (code === null || code.toLowerCase() === 'exit') {
-        console.log('--exit--');
-        process.exit();
-    }
-    try {
-        slasm.eval_slasm(code);
-    } catch (error) {
-        if (error instanceof Error) {
-            console.log(error.message);
-        } else {
-            console.log(error);
+export default async function repl(): Promise<void> {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+
+    const ask = () => new Promise<string>((resolve) => rl.question('> ', resolve));
+
+    while (true) {
+        const code = await ask();
+        if (!code || code.toLowerCase() === 'exit') {
+            console.log('--exit--');
+            rl.close();
+            process.exit();
+        }
+
+        const proc = slasm.eval_slasm(code);
+
+        proc.on('input', (reply) => {
+            rl.question('', (line) => reply(line));
+        });
+
+        try {
+            await proc.result;
+        } catch (error) {
+            console.log(error instanceof Error ? error.message : error);
         }
     }
 }
