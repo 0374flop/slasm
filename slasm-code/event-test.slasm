@@ -5,9 +5,8 @@
 
 ;-main-;
 (on "test-event" (fref "callback"))
+(on "test-event" (fref "callback"))
+(on "test-event" (fref "callback"))
 'aboba'
 (emit "test-event")
-(node)
 (clog sad)
-sad
-(clog)

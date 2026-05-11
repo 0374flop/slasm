@@ -1,4 +1,5 @@
 import type { Runtime } from '../../vm.js';
+import runInstruction from '../index.js';
 
 type Handler = (rt: Runtime) => void | Promise<void>;
 
@@ -20,8 +21,10 @@ export const events: Map<string, Handler> = new Map([
         if (handlers) {
             const data: string[] = [];
             while (v.stack.length > 0) data.push(v.stack.pop()!);
-            data.reverse(); // Keep original order
-            
+            data.reverse();
+
+            const emitIp = v.ip;
+
             for (const fref of handlers) {
                 const [ns, ipStr, argsStr, retsStr] = fref.split(':');
                 const targetMod = rt.modules.get(ns);
@@ -33,14 +36,13 @@ export const events: Map<string, Handler> = new Map([
 
                 const argVals = data.slice(data.length - args);
                 const stackBase = targetMod.stack.length;
-                
-                rt.callstack.push({ namespace: rt.current, ip: v.ip + 1, returns, stackBase });
+
+                rt.callstack.push({ namespace: rt.current, ip: emitIp + 1, returns, stackBase }); // <-- emitIp
                 rt.current = ns;
                 targetMod.ip = ip - 1;
                 for (const val of argVals) targetMod.stack.push(val);
-                
+
                 while (rt.current === ns && targetMod.ip < targetMod.instructions.length && targetMod.ip >= 0) {
-                    const { default: runInstruction } = await import('../index.js');
                     await runInstruction(rt);
                     if (rt.callstack.length === 0) break;
                     const topFrame = rt.callstack[rt.callstack.length - 1];
@@ -48,6 +50,5 @@ export const events: Map<string, Handler> = new Map([
                 }
             }
         }
-        v.ip++;
     }],
 ]);
