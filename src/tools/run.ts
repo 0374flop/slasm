@@ -50,5 +50,6 @@ export default async function run(filepath: string, key?: string): Promise<void>
     }
 
     attachStdinInput(proc);
+    proc.on('error', (err) => console.error('SLASM Error:', err.message));
     await proc.result;
 }

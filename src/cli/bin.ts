@@ -177,8 +177,16 @@ if (!first) replLoop();
     }
 
     if (first && fs.existsSync(first)) {
-        run(first);
-        process.exit(0);
+        (async () => {
+            try {
+                await run(first);
+                process.exit(0);
+            } catch (e) {
+                console.error(e instanceof Error ? e.message : e);
+                process.exit(1);
+            }
+        })();
+        return;
     }
 
     commands.help([]);

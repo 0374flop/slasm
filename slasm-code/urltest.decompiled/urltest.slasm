@@ -1,11 +1,10 @@
-;+test.js:testlib+;
+;+./testlib.js:testlib+;
 
 (jump (gln main))
-
 ;=CUM:1:0=;
 (clog (testlib.upper))
 (ret)
-
 ;-main-;
-(CUM "hello world")
+"hello world"
+(CUM)
 (clog "hello world")

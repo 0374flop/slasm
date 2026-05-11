@@ -1,0 +1,42 @@
+[
+  [
+    "push",
+    "main",
+    "gln",
+    "jump",
+    "testlib.upper",
+    "clog",
+    "ret",
+    "push",
+    "hello world",
+    "CUM",
+    "push",
+    "hello world",
+    "clog"
+  ],
+  [
+    {
+      "ip": 5,
+      "name": "CUM"
+    },
+    {
+      "ip": 8,
+      "name": "main"
+    }
+  ],
+  [],
+  [
+    {
+      "ip": 5,
+      "name": "CUM",
+      "args": 1,
+      "returns": 0
+    }
+  ],
+  [
+    {
+      "path": "./testlib.js",
+      "namespace": "testlib"
+    }
+  ]
+]

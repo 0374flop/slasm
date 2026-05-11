@@ -114,4 +114,37 @@ export const control: Map<string, Handler> = new Map([
         v.stack.push(String(rt.callstack.length));
         v.ip++;
     }],
+    ['fref', (rt) => {
+        const v = vm(rt);
+        const name = v.stack.pop() ?? '';
+        const found = v.labels.find(l => l.name === name);
+        if (!found) throw new Error(`fref: label '${name}' not found`);
+        const exp = v.exports.find(e => e.name === name);
+        v.stack.push(`${rt.current}:${found.ip}:${exp?.args ?? 0}:${exp?.returns ?? 0}`);
+        v.ip++;
+    }],
+    ['fcall', (rt) => {
+        const v = vm(rt);
+        const fref = v.stack.pop() ?? '';
+        const [ns, ipStr, argsStr, retsStr] = fref.split(':');
+        const mod = rt.modules.get(ns);
+        if (!mod) throw new Error(`fcall: module '${ns}' not loaded`);
+        
+        const ip      = Number(ipStr);
+        const args    = Number(argsStr);
+        const returns = Number(retsStr);
+
+        const argVals: string[] = [];
+        for (let i = 0; i < args; i++) {
+            const val = v.stack.pop();
+            if (val === undefined) throw new Error(`fcall: not enough arguments`);
+            argVals.unshift(val);
+        }
+
+        const stackBase = mod.stack.length;
+        rt.callstack.push({ namespace: rt.current, ip: v.ip + 1, returns, stackBase });
+        rt.current = ns;
+        mod.ip = ip - 1;
+        for (const val of argVals) mod.stack.push(val);
+    }],
 ]);

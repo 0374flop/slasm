@@ -32,6 +32,7 @@ export type Runtime = {
     callstack:     CallFrame[];
     current:       string;
     emitter:       SlasmProcess;
+    events:        Map<string, string[]>;
     inputQueue:    string[] | null;
     killed:        boolean;
 };
@@ -71,6 +72,7 @@ export function createRuntime(
         callstack:     [],
         current:       'master',
         emitter,
+        events:        new Map(),
         inputQueue,
         killed:        false,
     };

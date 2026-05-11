@@ -24,4 +24,5 @@ export const misc: Map<string, Handler> = new Map([
     }],
     ['begin', (rt) => { vm(rt).ip++; }],
     ['none',  (rt) => { vm(rt).ip++; }],
+    ['done',  (rt) => { rt.killed = true; }],
 ]);

@@ -7,6 +7,7 @@ import { io }         from './operators/io.js';
 import { control }    from './operators/control.js';
 import { introspect } from './operators/introspect.js';
 import { misc }       from './operators/misc.js';
+import { events }     from './operators/events.js';
 
 type Handler = (rt: Runtime) => void | Promise<void>;
 
@@ -18,19 +19,21 @@ const handlers: Map<string, Handler> = new Map([
         v.stack.push(v.instructions[v.ip]);
         v.ip++;
     }],
-    ...arithmetic,
-    ...memory,
-    ...stack,
-    ...strings,
-    ...io,
-    ...control,
-    ...introspect,
-    ...misc,
+    ...Array.from(arithmetic.entries()),
+    ...Array.from(memory.entries()),
+    ...Array.from(stack.entries()),
+    ...Array.from(strings.entries()),
+    ...Array.from(io.entries()),
+    ...Array.from(control.entries()),
+    ...Array.from(introspect.entries()),
+    ...Array.from(misc.entries()),
+    ...Array.from(events.entries()),
 ]);
 
 export default async function runInstruction(runtime: Runtime): Promise<void> {
     const vm = runtime.modules.get(runtime.current)!;
     const op = vm.instructions[vm.ip];
+    // console.log(`[VM] ${runtime.current}:${vm.ip} | ${op} | Stack: [${vm.stack.join(', ')}]`);
 
     const handler = handlers.get(op);
     if (handler) { await handler(runtime); return; }

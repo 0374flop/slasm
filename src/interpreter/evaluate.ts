@@ -28,8 +28,8 @@ export default function evaluate(
             await loadModule(imp.path, imp.namespace, runtime, basedir, imp.key);
         }
 
-        const vm = runtime.modules.get('master')!;
-        while (vm.ip < vm.instructions.length) {
+        const master = runtime.modules.get('master')!;
+        while (runtime.current === 'master' && master.ip < master.instructions.length) {
             if (runtime.killed) break;
             await runInstruction(runtime);
         }

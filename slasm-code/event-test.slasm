@@ -1,0 +1,13 @@
+(jump (gln main))
+;=callback:1:0=;
+(clog)
+(ret)
+
+;-main-;
+(on "test-event" (fref "callback"))
+'aboba'
+(emit "test-event")
+(node)
+(clog sad)
+sad
+(clog)
