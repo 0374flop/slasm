@@ -8,7 +8,9 @@
     "build": "tsc"
   },
   "bin": {
-    "slasm": "lib/cli/bin.js"
+    "slasm": "lib/cli/sl-main.js",
+    "sl-pm": "lib/cli/sl-pm.js",
+    "sl-pkg": "lib/cli/sl-pkg.js"
   },
   "keywords": [
     "slasm",
