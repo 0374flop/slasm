@@ -5,7 +5,6 @@ import path from 'node:path';
 import slasm from "../interpreter";
 import repl from "./repl";
 import run from "../tools/run";
-import { decompileFile } from "../tools/decompiler";
 import prettyParse from "./prettyparse";
 import { findProjectRoot, readSlasmJson } from "../tools/fetch";
 
@@ -50,12 +49,6 @@ const helpTexts: Record<string, string> = {
 
   Parses a .slasm file or inline code and prints the instruction list with labels.`,
 
-    decompile: `slasm decompile <file> [--out] [--key[=]<key>]
-
-  Decompiles a binary file back to readable .slasm source.
-
-  --out        write output to file instead of stdout
-  --key=<key>  decryption key for encrypted binaries`,
 };
 
 const commands: Record<string, Command> = {
@@ -86,21 +79,6 @@ const commands: Record<string, Command> = {
         const result = slasm.parse(slasm.tokenize(src));
         console.log(prettyParse(result.instructions, result.labels, result.comments));
     },
-    decompile: async (a) => {
-        const file = a.find(x => !x.startsWith('-'));
-        if (!file) throw new Error('usage: slasm decompile <file>');
-        const ext = path.extname(file);
-        const isPkg = ext === '.slpkg' || ext === '.slpkgz' || ext === '.slpkgj';
-        const result = await decompileFile(file, readKey(a));
-        if (isPkg || a.includes('--out')) {
-            const p = path.normalize(file);
-            const outPath = path.join(path.dirname(p), path.basename(p, ext) + '.decompiled.slasm');
-            fs.writeFileSync(outPath, result, { encoding: 'utf-8' });
-            console.log(outPath);
-        } else {
-            console.log(result);
-        }
-    },
     help: () => {
         console.log(`slasm
 
@@ -113,7 +91,10 @@ commands:
   eval         evaluate inline SLASM code
   repl         interactive REPL
   parse        parse and print instruction list
-  decompile    decompile binary back to .slasm source`);
+
+related tools:
+  sl-pkg       pack, unpack, convert, encrypt, decompile
+  sl-pm        install, uninstall, init modules`);
     }
 };
 

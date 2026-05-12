@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { initProject, findProjectRoot, readSlasmJson, installModules, clearLocalModules, CACHE_DIR } from "../tools/fetch";
+import { initProject, findProjectRoot, readSlasmJson, writeSlasmJson, installModules, clearLocalModules, CACHE_DIR, MODULES_DIR } from "../tools/fetch";
 
 type Command = (args: string[]) => void | Promise<void>;
 
@@ -29,6 +29,12 @@ const helpTexts: Record<string, string> = {
     sl-pm install                         (reinstall all from slasm.json)
 
   --update   force re-download even if already cached`,
+
+    uninstall: `sl-pm uninstall <name> [<name> ...]
+
+  Removes installed module(s) from slasm_modules/ and slasm.json.
+
+  Aliases: uni`,
 
     'modules-clear': `sl-pm modules-clear
 
@@ -68,6 +74,22 @@ const commands: Record<string, Command> = {
             await installModules(parsed, forceUpdate);
         }
     },
+    uninstall: (a) => {
+        const names = a.filter(x => !x.startsWith('--'));
+        if (names.length === 0) throw new Error('usage: sl-pm uninstall <name> [<name> ...]');
+        const root = findProjectRoot(process.cwd());
+        if (!root) throw new Error('no slasm.json found — run: sl-pm init');
+        const json = readSlasmJson(root);
+        for (const name of names) {
+            const rel = json.modules[name];
+            if (!rel) { console.log(`  not installed: ${name}`); continue; }
+            const abs = path.join(root, rel);
+            if (fs.existsSync(abs)) fs.rmSync(abs, { force: true });
+            delete json.modules[name];
+            console.log(`  removed: ${name}`);
+        }
+        writeSlasmJson(root, json);
+    },
     'modules-clear': () => {
         const root = findProjectRoot(process.cwd());
         if (!root) throw new Error('no slasm.json found — run: sl-pm init');
@@ -94,7 +116,8 @@ usage:
 
 commands:
   init           create slasm.json
-  install        install modules from slasm.json or URLs
+  install (i)    install modules from slasm.json or URLs
+  uninstall (uni) remove installed module(s)
   modules-clear  remove slasm_modules/
   cache-clear    clear global cache`);
     }
@@ -106,14 +129,17 @@ const first = args[0];
 (async () => {
     if (!first || first === 'help') { commands.help([]); process.exit(0); }
 
-    if (commands[first]) {
+    const aliases: Record<string, string> = { i: 'install', uni: 'uninstall' };
+    const cmd = aliases[first] ?? first;
+
+    if (commands[cmd]) {
         const a = args.slice(1);
         if (a.includes('-h') || a.includes('--help')) {
-            console.log(helpTexts[first] ?? `no help available for '${first}'`);
+            console.log(helpTexts[cmd] ?? `no help available for '${cmd}'`);
             process.exit(0);
         }
         try {
-            await commands[first](a);
+            await commands[cmd](a);
         } catch (e) {
             console.error(e instanceof Error ? e.message : e);
             process.exit(1);
