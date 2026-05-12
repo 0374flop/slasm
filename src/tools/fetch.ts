@@ -182,7 +182,7 @@ export function collectImports(filepath: string, basedir: string, seen = new Set
         } else if (ext === '.slasmbin' || ext === '.slasmz') {
             let buf = fs.readFileSync(abs);
             if (ext === '.slasmz') buf = zlib.inflateSync(buf);
-            const [, , , , imps] = SLASMBin.unpack(buf);
+            const [, , , , imps] = (SLASMBin.unpack(buf) as any);
             imports = imps ?? [];
         }
     } catch { return []; }

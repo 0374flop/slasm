@@ -8,7 +8,6 @@ import parse from './parse.js';
 import preprocess from './preprocess.js';
 import nodeVm from 'node:vm';
 import { createVM, type Runtime, type NativeExport } from './vm.js';
-import type { InlineModule } from '../tools/packunpack.js';
 import type { ParsedSLASM } from '../tools/packunpack.js';
 import SLASMBin from '../tools/packunpack.js';
 import { importToUrl, cachedPath, findProjectRoot, collectImports } from '../tools/fetch.js';
@@ -20,7 +19,7 @@ const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
 
 export async function checkMissingModules(filepath: string): Promise<void> {
     const projectRoot = findProjectRoot(path.dirname(filepath));
-    const urls = collectImports(filepath, path.dirname(filepath));
+    const urls = collectImports(filepath, path.dirname(filepath)).filter(u => importToUrl(u) !== null);
     const missing = [...new Set(urls)].filter(u => !cachedPath(u, projectRoot));
     if (missing.length > 0) {
         const args = missing.join(' ');
@@ -45,24 +44,6 @@ function resolve(filepath: string, basedir: string): string {
     throw new Error(`module not found: ${p}`);
 }
 
-export async function loadInlineModules(inlineModules: InlineModule[], runtime: Runtime): Promise<void> {
-    for (const m of inlineModules) {
-        if (runtime.modules.has(m.namespace) || runtime.nativeModules.has(m.namespace)) continue;
-        if (m.type === 'slasm') {
-            runtime.modules.set(m.namespace, createVM(m.namespace, m.instructions.map(String), m.labels, [], m.exports));
-        } else {
-            const context = { module: { exports: {} as Record<string, NativeExport> }, require };
-            nodeVm.runInNewContext(m.source, context);
-            const exports = new Map<string, NativeExport>();
-            for (const [name, def] of Object.entries(context.module.exports)) {
-                if (typeof def.fn !== 'function') throw new Error(`inline native module '${m.namespace}': export '${name}' missing fn`);
-                exports.set(name, { args: def.args ?? 0, returns: def.returns ?? 0, fn: def.fn });
-            }
-            runtime.nativeModules.set(m.namespace, exports);
-        }
-        runtime.emitter.emit('module:load', m.namespace, '(inline)');
-    }
-}
 
 export async function loadModule(filepath: string, namespace: string, runtime: Runtime, basedir: string = '', key?: string): Promise<void> {
     if (runtime.modules.has(namespace)) return;

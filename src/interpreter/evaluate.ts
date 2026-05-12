@@ -1,21 +1,19 @@
 import path from 'node:path';
 import type { label, directive, importDef, exportDef } from './types.js';
 import { createRuntime } from './vm.js';
-import { loadModule, loadInlineModules } from './loader.js';
-import type { InlineModule } from '../tools/packunpack.js';
+import { loadModule } from './loader.js';
 import runInstruction from './runinstruction/index.js';
 import { SlasmProcess } from './process.js';
 
 export default function evaluate(
-    instructions:  string[],
-    labels:        label[]        = [],
-    directives:    directive[]    = [],
-    clog:          string[]       = [],
-    imports:       importDef[]    = [],
-    basedir:       string         = process.cwd(),
-    exports:       exportDef[]    = [],
-    inlineModules: InlineModule[] = [],
-    inputQueue:    string[] | null = null,
+    instructions: string[],
+    labels:       label[]         = [],
+    directives:   directive[]     = [],
+    clog:         string[]        = [],
+    imports:      importDef[]     = [],
+    basedir:      string          = process.cwd(),
+    exports:      exportDef[]     = [],
+    inputQueue:   string[] | null = null,
 ): SlasmProcess {
     const proc = new SlasmProcess();
 
@@ -23,7 +21,6 @@ export default function evaluate(
     runtime.clog = clog;
 
     const run = async () => {
-        await loadInlineModules(inlineModules, runtime);
         for (const imp of imports) {
             await loadModule(imp.path, imp.namespace, runtime, basedir, imp.key);
         }

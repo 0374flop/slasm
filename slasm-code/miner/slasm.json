@@ -1,0 +1,5 @@
+{
+  "name": "miner",
+  "main": "test.slasm",
+  "modules": {}
+}

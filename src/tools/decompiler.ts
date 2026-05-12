@@ -1,51 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import SLASMBin, { type ParsedSLASM, type ExportEntry, type ImportEntry, type InlineModule } from './packunpack';
+import SLASMBin, { type ParsedSLASM, type ExportEntry } from './packunpack';
 import { isEncrypted, decrypt } from './encrypt';
+import { unpackProject } from './pkg';
 
 import _ARITY from '../interpreter/runinstruction/arity.json';
 const ARITY = _ARITY as unknown as Record<string, [number, number]>;
-
-function extractJsArity(source: string): Record<string, [number, number]> {
-    const result: Record<string, [number, number]> = {};
-    const nameRegex = /(\w+)\s*:/g;
-    let m: RegExpExecArray | null;
-    while ((m = nameRegex.exec(source)) !== null) {
-        const name = m[1];
-        const rest = source.slice(m.index + m[0].length).trimStart();
-        if (!rest.startsWith('{')) continue;
-        let depth = 0, j = 0, blockEnd = -1;
-        for (; j < rest.length; j++) {
-            if (rest[j] === '{') depth++;
-            else if (rest[j] === '}') { depth--; if (depth === 0) { blockEnd = j; break; } }
-        }
-        if (blockEnd === -1) continue;
-        const block = rest.slice(0, blockEnd + 1);
-        const argsM = block.match(/\bargs\s*:\s*(\d+)/);
-        const retM  = block.match(/\breturns\s*:\s*(\d+)/);
-        if (argsM && retM) result[name] = [Number(argsM[1]), Number(retM[1])];
-    }
-    return result;
-}
-
-function collectExtraArity(inlineModules: InlineModule[]): Record<string, [number, number]> {
-    const result: Record<string, [number, number]> = {};
-    for (const m of inlineModules) {
-        if (m.type === 'slasm') {
-            for (const e of m.exports) {
-                result[`${m.namespace}.${e.name}`] = [e.args, e.returns];
-                result[e.name] = [e.args, e.returns];
-            }
-        } else {
-            for (const [name, arity] of Object.entries(extractJsArity(m.source))) {
-                result[`${m.namespace}.${name}`] = arity;
-                result[name] = arity;
-            }
-        }
-    }
-    return result;
-}
 
 function lit(val: string): string {
     if (val.startsWith('(')) return val;
@@ -58,71 +19,81 @@ export function decompileFile(filepath: string, key?: string): string {
     if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
     const ext = path.extname(p);
 
-    if (ext === '.slasmbin' || ext === '.slasmz') {
+    if (ext === '.slpkg' || ext === '.slpkgz' || ext === '.slpkgj') {
+        return decompilePkg(p, key);
+    } else if (ext === '.slasmbin' || ext === '.slasmz') {
         let buff = fs.readFileSync(p);
         if (isEncrypted(buff)) {
             if (!key) throw new Error('file is encrypted, provide --key');
             buff = decrypt(buff, key);
         }
         if (ext === '.slasmz') buff = zlib.inflateSync(buff);
-        const parsed = SLASMBin.unpack(buff);
-        const [code, labels, comments, exports, , inlineModules] = parsed;
-        const extraArity = inlineModules ? collectExtraArity(inlineModules) : {};
-
-        if (inlineModules && inlineModules.length > 0) {
-            const baseName = path.basename(p, ext);
-            const outDir   = path.join(path.dirname(p), baseName + '.decompiled');
-            if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
-
-            const importEntries: ImportEntry[] = [];
-
-            for (const m of inlineModules) {
-                if (m.type === 'slasm') {
-                    const src = decompile([m.instructions.map(String), m.labels, [], m.exports], extraArity);
-                    const outPath = path.join(outDir, m.namespace + '.slasm');
-                    fs.writeFileSync(outPath, src, { encoding: 'utf-8' });
-                    importEntries.push({ path: './' + m.namespace, namespace: m.namespace });
-                } else {
-                    const outPath = path.join(outDir, m.namespace + '.js');
-                    fs.writeFileSync(outPath, m.source, { encoding: 'utf-8' });
-                    importEntries.push({ path: './' + m.namespace + '.js', namespace: m.namespace });
-                }
-            }
-
-            const importLines = importEntries.map(i => `;+${i.path}:${i.namespace}+;`).join('\n');
-            const mainSrc = importLines + '\n\n' + decompile([code.map(String), labels, comments, exports ?? []], extraArity);
-            const mainPath = path.join(outDir, baseName + '.slasm');
-            fs.writeFileSync(mainPath, mainSrc, { encoding: 'utf-8' });
-            return outDir;
-        }
-
-        return decompile(parsed, extraArity);
+        return decompile(SLASMBin.unpack(buff));
     } else if (ext === '.slasmjson') {
         return decompile(JSON.parse(fs.readFileSync(p, { encoding: 'utf-8' })));
     } else {
-        throw new Error(`decompile supports: .slasmjson, .slasmbin, .slasmz`);
+        throw new Error(`decompile supports: .slasmjson, .slasmbin, .slasmz, .slpkg, .slpkgz, .slpkgj`);
     }
+}
+
+function removeDirSync(dir: string): void {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) removeDirSync(full);
+        else fs.unlinkSync(full);
+    }
+    fs.rmdirSync(dir);
+}
+
+function decompilePkg(pkgPath: string, key?: string): string {
+    const base   = path.basename(pkgPath, path.extname(pkgPath));
+    const outDir = path.join(path.dirname(pkgPath), base + '.decompiled');
+    const tmpDir = outDir + '.tmp';
+
+    fs.mkdirSync(tmpDir, { recursive: true });
+    try {
+        const files = unpackProject(pkgPath, tmpDir, key);
+        fs.mkdirSync(outDir, { recursive: true });
+        for (const f of files) {
+            const rel  = path.relative(tmpDir, f);
+            const dest = path.join(outDir, rel);
+            const ext  = path.extname(f);
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            if (ext === '.slasmbin' || ext === '.slasmz') {
+                const src = decompileFile(f);
+                const out = dest.replace(/\.(slasmbin|slasmz)$/, '.slasm');
+                fs.writeFileSync(out, src, 'utf-8');
+            } else {
+                fs.copyFileSync(f, dest);
+            }
+        }
+    } catch (e) {
+        removeDirSync(tmpDir);
+        throw e;
+    }
+    removeDirSync(tmpDir);
+
+    return outDir;
 }
 
 export default function decompile(parsed: ParsedSLASM, extraArity: Record<string, [number, number]> = {}): string {
     const [instructions, labels, comments = [], exports = [], imports = []] = parsed;
 
+    const importLines = imports.map(i => i.key ? `;+${i.path}:${i.key}:${i.namespace}+;` : `;+${i.path}:${i.namespace}+;`);
+
     const labelAtIp = new Map<number, string>();
-    for (const lbl of labels) {
-        labelAtIp.set(lbl.ip, lbl.name);
-    }
+    for (const lbl of labels) labelAtIp.set(lbl.ip, lbl.name);
 
     const exportAtIp = new Map<number, ExportEntry>();
-    for (const e of exports) {
-        exportAtIp.set(e.ip, e);
-    }
+    for (const e of exports) exportAtIp.set(e.ip, e);
 
-    const emittedLabels  = new Set<number>();
-    const commentAtIp = new Map<number, string>();
+    const emittedLabels = new Set<number>();
+    const commentAtIp   = new Map<number, string>();
     for (const c of comments) commentAtIp.set(c.ip, c.text);
 
     const exprStack: string[] = [];
-    const output: string[] = [];
+    const output:    string[] = [];
     let statementStartIp = 1;
     let i = 0;
 
@@ -139,11 +110,7 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
     const maybeEmitLabel = (ip: number) => {
         if (labelAtIp.has(ip) && !emittedLabels.has(ip)) {
             const exp = exportAtIp.get(ip);
-            if (exp) {
-                output.push(`;=${exp.name}:${exp.args}:${exp.returns}=;`);
-            } else {
-                output.push(`;-${labelAtIp.get(ip)}-;`);
-            }
+            output.push(exp ? `;=${exp.name}:${exp.args}:${exp.returns}=;` : `;-${labelAtIp.get(ip)}-;`);
             emittedLabels.add(ip);
         }
     };
@@ -151,13 +118,10 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
     while (i < instructions.length) {
         const op = String(instructions[i]);
 
-        if (exprStack.length === 0) {
-            statementStartIp = i + 1;
-        }
+        if (exprStack.length === 0) statementStartIp = i + 1;
 
         if (op === 'push') {
-            const val = String(instructions[i + 1]);
-            exprStack.push(lit(val));
+            exprStack.push(lit(String(instructions[i + 1])));
             i += 2;
             continue;
         }
@@ -168,9 +132,7 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
 
         if (arity === undefined) {
             maybeEmitLabel(statementStartIp);
-            while (exprStack.length > 0) {
-                output.push(exprStack.shift()!);
-            }
+            while (exprStack.length > 0) output.push(exprStack.shift()!);
             output.push(`(${op})`);
             i++;
             continue;
@@ -190,9 +152,7 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
             }
         }
 
-        const expr = args.length > 0
-            ? `(${op} ${args.join(' ')})`
-            : `(${op})`;
+        const expr = args.length > 0 ? `(${op} ${args.join(' ')})` : `(${op})`;
 
         if (produced > 0) {
             exprStack.push(expr);
@@ -208,9 +168,7 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
 
     if (exprStack.length > 0) {
         output.push(';orphaned-stack-items:;');
-        for (const item of exprStack) {
-            output.push(item);
-        }
+        for (const item of exprStack) output.push(item);
     }
 
     for (const [ip, name] of labelAtIp) {
@@ -224,7 +182,5 @@ export default function decompile(parsed: ParsedSLASM, extraArity: Record<string
         }
     }
 
-    const importLines = imports.map(i => `;+${i.path}:${i.namespace}+;`).join('\n');
-    const body = output.join('\n');
-    return importLines ? importLines + '\n\n' + body : body;
+    return [...importLines, ...output].join('\n');
 }

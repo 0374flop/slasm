@@ -18,7 +18,7 @@ function eval_slasm(program: string, filepath?: string, inputQueue: string[] | n
     const result = parse(tokenize(program));
     const instructions = preprocess(result.instructions);
     const basedir = filepath ? path.dirname(path.resolve(filepath)) : process.cwd();
-    return evaluate(instructions, result.labels, result.directives, [], result.imports, basedir, result.exports, [], inputQueue);
+    return evaluate(instructions, result.labels, result.directives, [], result.imports, basedir, result.exports, inputQueue);
 }
 
 const slasm = {
