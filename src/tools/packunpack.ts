@@ -81,8 +81,6 @@ class Reader {
     remaining(): number { return this.buf.length - this.offset; }
 }
 
-// ─── const table helpers ─────────────────────────────────────────────────────
-
 function buildConstTable(parsed: ParsedSLASM): { table: string[]; index: Record<string, number> } {
     const [code, labels, comments, exports = [], imports = []] = parsed;
     const table: string[] = [];
@@ -126,8 +124,6 @@ function readInstructions(r: Reader, constTable: string[]): Array<string|number>
     }
     return result;
 }
-
-// ─── SLASMBin ────────────────────────────────────────────────────────────────
 
 export default class SLASMBin {
 

@@ -12,9 +12,14 @@ const helpTexts: Record<string, string> = {
 
   Creates a slasm.json in the given directory (default: current directory).`,
 
-    install: `sl-pm install <url>:<name> [<url>:<name> ...] [--update]
+    install: `sl-pm install <source>:<name> [<source>:<name> ...] [--update]
 
-  Installs a module from a URL, GitHub shorthand, or local path.
+  Installs a module and saves it to slasm_modules/.
+  <source> can be:
+    https://example.com/mylib.js      remote URL
+    ./path/to/lib.js                  local file path
+    user/repo                         GitHub repo (downloads master/index.js)
+    user/repo/any/path/to/file.js     specific file in a GitHub repo
 
   Examples:
     sl-pm install https://example.com/mylib.js:mylib

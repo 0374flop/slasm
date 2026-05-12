@@ -33,7 +33,6 @@ const handlers: Map<string, Handler> = new Map([
 export default async function runInstruction(runtime: Runtime): Promise<void> {
     const vm = runtime.modules.get(runtime.current)!;
     const op = vm.instructions[vm.ip];
-    // console.log(`[VM] ${runtime.current}:${vm.ip} | ${op} | Stack: [${vm.stack.join(', ')}]`);
 
     const handler = handlers.get(op);
     if (handler) { await handler(runtime); return; }
@@ -60,7 +59,7 @@ export default async function runInstruction(runtime: Runtime): Promise<void> {
                 if (val === undefined) throw new Error(`${op}: not enough arguments (need ${exp.args})`);
                 argVals.unshift(val);
             }
-            const results = exp.fn(argVals) ?? [];
+            const results = exp.fn(argVals, runtime) ?? [];
             for (const r of results) vm.stack.push(r);
             vm.ip++;
             return;
@@ -108,7 +107,7 @@ export default async function runInstruction(runtime: Runtime): Promise<void> {
                         if (val === undefined) throw new Error(`${op}: not enough arguments (need ${exp.args})`);
                         argVals.unshift(val);
                     }
-                    const results = exp.fn(argVals) ?? [];
+                    const results = exp.fn(argVals, runtime) ?? [];
                     for (const r of results) vm.stack.push(r);
                     vm.ip++;
                     return;

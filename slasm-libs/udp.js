@@ -6,29 +6,32 @@ let nextId = 1;
 module.exports = {
     open: {
         args: 0, returns: 1,
-        fn: () => {
+        fn: (_, runtime) => {
             const id = String(nextId++);
             const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
             const messages = [];
-            let ready = false;
 
             sock.on('message', (msg, rinfo) => {
-                messages.push({
-                    data: msg.toString(),
-                    from: rinfo.address,
-                    port: String(rinfo.port)
-                });
-            });
+                const data = msg.toString();
+                const from = rinfo.address;
+                const port = String(rinfo.port);
 
-            sock.on('listening', () => {
-                ready = true;
+                messages.push({ data, from, port });
+
+                if (runtime) {
+                    runtime.emitter.emit('event', `udp:message:${id}`, data, from, port);
+                }
             });
 
             sock.on('error', (err) => {
-                console.error('UDP ERROR:', err);
+                if (runtime) {
+                    runtime.emitter.emit('event', `udp:error:${id}`, err.message);
+                } else {
+                    console.error('UDP ERROR:', err);
+                }
             });
 
-            sockets.set(id, { sock, messages, ready });
+            sockets.set(id, { sock, messages });
             return [id];
         }
     },
@@ -38,12 +41,8 @@ module.exports = {
         fn: ([id, port]) => {
             const s = sockets.get(id);
             if (!s) throw new Error(`udp: no socket ${id}`);
-
-            s.sock.bind({
-                port: Number(port),
-                address: '0.0.0.0',
-                exclusive: false
-            });
+            s.sock.bind({ port: Number(port), address: '0.0.0.0', exclusive: false });
+            return [];
         }
     },
 
@@ -52,11 +51,9 @@ module.exports = {
         fn: ([id, msg, host, port]) => {
             const s = sockets.get(id);
             if (!s) throw new Error(`udp: no socket ${id}`);
-
-            if (!s.ready) return;
-
             const buf = Buffer.from(msg);
             s.sock.send(buf, 0, buf.length, Number(port), host);
+            return [];
         }
     },
 
@@ -65,10 +62,8 @@ module.exports = {
         fn: ([id]) => {
             const s = sockets.get(id);
             if (!s) throw new Error(`udp: no socket ${id}`);
-
             const m = s.messages.shift();
             if (!m) return ['', '', ''];
-
             return [m.data, m.from, m.port];
         }
     },
@@ -89,6 +84,7 @@ module.exports = {
             if (!s) throw new Error(`udp: no socket ${id}`);
             s.sock.close();
             sockets.delete(id);
+            return [];
         }
     },
 };

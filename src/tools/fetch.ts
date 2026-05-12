@@ -1,13 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import zlib from 'node:zlib';
 import https from 'node:https';
 import http from 'node:http';
 import os from 'node:os';
-import crypto from 'node:crypto';
-import tokenize from '../interpreter/tokenize.js';
-import parse from '../interpreter/parse.js';
-import SLASMBin from './packunpack.js';
 import slasm from '../interpreter/index.js';
 
 export const GLOBAL_CACHE_DIR = path.join(os.homedir(), '.slasm', 'cache');
@@ -15,8 +10,6 @@ export const CACHE_DIR = GLOBAL_CACHE_DIR;
 
 export const SLASM_JSON  = 'slasm.json';
 export const MODULES_DIR = 'slasm_modules';
-
-const EXTENSIONS = ['.slasm', '.slasmbin', '.slasmz', '.slasmjson', '.js'];
 
 export interface SlasmJson {
     name?: string;
@@ -90,6 +83,67 @@ function isBuiltin(name: string): boolean {
            fs.existsSync(path.join(BUILTIN_LIBS_DIR, name, 'index.js'));
 }
 
+async function resolveSrc(src: string, name: string): Promise<string | null> {
+    const isUrl   = src.startsWith('https://') || src.startsWith('http://');
+    const isLocal = src.startsWith('./') || src.startsWith('../') || path.isAbsolute(src);
+    const isGhShorthand = /^[^/]+\/[^/]+(\/.*)?$/.test(src) && !isUrl && !isLocal;
+
+    if (isGhShorthand) {
+        const parts = src.split('/');
+        const file  = parts.slice(2).join('/') || 'index.js';
+        const base  = `https://raw.githubusercontent.com/${parts[0]}/${parts[1]}`;
+        try { await fetchUrl(`${base}/main/${file}`, 5000); return `${base}/main/${file}`; }
+        catch { return `${base}/master/${file}`; }
+    }
+
+    if (!isUrl && !isLocal) {
+        process.stdout.write(`  enter URL or path for module '${name}': `);
+        const buf = Buffer.alloc(4096);
+        const n = fs.readSync(0, buf, 0, buf.length, null);
+        const input = buf.slice(0, n).toString().trim();
+        if (!input) return null;
+        return input;
+    }
+
+    return src;
+}
+
+async function downloadModule(resolvedSrc: string, name: string, projectRoot: string, forceUpdate: boolean): Promise<string> {
+    const isUrl = resolvedSrc.startsWith('https://') || resolvedSrc.startsWith('http://');
+
+    if (isUrl) {
+        const srcExt  = path.extname(new URL(resolvedSrc).pathname) || '.js';
+        const destExt = srcExt === '.slasm' ? '.slasmbin' : srcExt;
+        const localPath = path.join(projectRoot, MODULES_DIR, name + destExt);
+        fs.mkdirSync(path.dirname(localPath), { recursive: true });
+
+        if (!forceUpdate && fs.existsSync(localPath)) {
+            console.log(`  cached   ${name} (${resolvedSrc})`);
+            return localPath;
+        }
+
+        const data = await fetchUrl(resolvedSrc);
+        const content = srcExt === '.slasm' ? slasm.compile_slasm(data.toString('utf-8')) : data;
+        fs.writeFileSync(localPath, content);
+        console.log(`  installed ${name} ← ${resolvedSrc}`);
+        return localPath;
+    } else {
+        const abs = path.resolve(resolvedSrc);
+        if (!fs.existsSync(abs)) throw new Error(`file not found: ${abs}`);
+        const localPath = path.join(projectRoot, MODULES_DIR, name + (path.extname(abs) || '.js'));
+        fs.mkdirSync(path.dirname(localPath), { recursive: true });
+
+        if (!forceUpdate && fs.existsSync(localPath)) {
+            console.log(`  cached   ${name} (${resolvedSrc})`);
+            return localPath;
+        }
+
+        fs.copyFileSync(abs, localPath);
+        console.log(`  installed ${name} ← ${resolvedSrc}`);
+        return localPath;
+    }
+}
+
 export async function installModules(specs: { name: string; src: string }[], forceUpdate = false): Promise<void> {
     const projectRoot = findProjectRoot(process.cwd());
     if (!projectRoot) throw new Error('no slasm.json found — run: slasm init');
@@ -103,68 +157,19 @@ export async function installModules(specs: { name: string; src: string }[], for
             continue;
         }
 
-        let resolvedSrc = src;
-        const isUrl   = src.startsWith('https://') || src.startsWith('http://');
-        const isLocal = src.startsWith('./') || src.startsWith('../') || path.isAbsolute(src);
-        const isGhShorthand = /^[^/]+\/[^/]+(\/.*)?$/.test(src) && !isUrl && !isLocal;
-        if (isGhShorthand) {
-            const parts = src.split('/');
-            const user  = parts[0];
-            const repo  = parts[1];
-            const rest  = parts.slice(2).join('/');
-            resolvedSrc = `https://raw.githubusercontent.com/${user}/${repo}/master/${rest || 'index.js'}`;
-        } else if (!isUrl && !isLocal) {
-            process.stdout.write(`  enter URL or path for module '${name}': `);
-            const buf = Buffer.alloc(4096);
-            const n = require('node:fs').readSync(0, buf, 0, buf.length, null);
-            resolvedSrc = buf.slice(0, n).toString().trim();
+        try {
+            const resolvedSrc = await resolveSrc(src, name);
             if (!resolvedSrc) {
                 console.log(`  failed   ${name} — no URL provided`);
                 fail++;
                 continue;
             }
-        }
 
-        try {
-            let localPath: string;
+            const localPath = await downloadModule(resolvedSrc, name, projectRoot, forceUpdate);
 
-            if (resolvedSrc.startsWith('https://') || resolvedSrc.startsWith('http://')) {
-                const ext  = path.extname(new URL(resolvedSrc).pathname) || '.js';
-                const rel  = path.join(MODULES_DIR, name + ext).replace(/\\/g, '/');
-                localPath  = path.join(projectRoot, rel);
-                fs.mkdirSync(path.dirname(localPath), { recursive: true });
-
-                if (!forceUpdate && fs.existsSync(localPath)) {
-                    console.log(`  cached   ${name} (${resolvedSrc})`);
-                } else {
-                    const data = await fetchUrl(resolvedSrc);
-                    if (path.extname(resolvedSrc) === '.slasm') {
-                        const bin = slasm.compile_slasm(data.toString('utf-8'));
-                        localPath = localPath.replace(/\.js$/, '.slasmbin');
-                        fs.writeFileSync(localPath, bin);
-                    } else {
-                        fs.writeFileSync(localPath, data);
-                    }
-                    console.log(`  installed ${name} ← ${resolvedSrc}`);
-                }
-            } else {
-                const abs = path.resolve(resolvedSrc);
-                if (!fs.existsSync(abs)) throw new Error(`file not found: ${abs}`);
-                const ext = path.extname(abs) || '.js';
-                const rel = path.join(MODULES_DIR, name + ext).replace(/\\/g, '/');
-                localPath = path.join(projectRoot, rel);
-                fs.mkdirSync(path.dirname(localPath), { recursive: true });
-                if (!forceUpdate && fs.existsSync(localPath)) {
-                    console.log(`  cached   ${name} (${resolvedSrc})`);
-                } else {
-                    fs.copyFileSync(abs, localPath);
-                    console.log(`  installed ${name} ← ${resolvedSrc}`);
-                }
-            }
-
-            const data = readSlasmJson(projectRoot);
-            data.modules[name] = path.relative(projectRoot, localPath).replace(/\\/g, '/');
-            writeSlasmJson(projectRoot, data);
+            const json = readSlasmJson(projectRoot);
+            json.modules[name] = path.relative(projectRoot, localPath).replace(/\\/g, '/');
+            writeSlasmJson(projectRoot, json);
             ok++;
         } catch (e) {
             console.error(`  failed   ${name} — ${(e as Error).message}`);

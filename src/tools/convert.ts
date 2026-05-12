@@ -1,10 +1,12 @@
 import fs   from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import AdmZip from 'adm-zip';
 import slasm from '../interpreter';
 import SLASMBin, { type ParsedSLASM } from './packunpack';
 import decompile from './decompiler';
-import { isEncrypted, decrypt } from './encrypt';
+import { isEncrypted, decrypt, encrypt } from './encrypt';
+import { type PkgFormat } from './pkg';
 
 type Format = 'slasm' | 'slasmjson' | 'slasmbin' | 'slasmz';
 
@@ -58,6 +60,49 @@ export default function convert(filepath: string, toFormat: string, key?: string
         fs.writeFileSync(outPath, SLASMBin.pack(parsed));
     } else if (fmt === 'slasmz') {
         fs.writeFileSync(outPath, zlib.deflateSync(SLASMBin.pack(parsed)));
+    }
+
+    return outPath;
+}
+
+function compileToBin(filepath: string): Buffer {
+    const ext = path.extname(filepath);
+    if (ext === '.slasmbin') return fs.readFileSync(filepath);
+    if (ext === '.slasmz')   return zlib.inflateSync(fs.readFileSync(filepath));
+    if (ext === '.slasmjson') return SLASMBin.pack(JSON.parse(fs.readFileSync(filepath, 'utf-8')));
+    if (ext === '.slasm') {
+        const r = slasm.parse(slasm.tokenize(fs.readFileSync(filepath, 'utf-8')));
+        return SLASMBin.pack([r.instructions, r.labels, r.comments, r.exports, r.imports]);
+    }
+    throw new Error(`cannot compile: ${filepath}`);
+}
+
+export function packSingleFile(filepath: string, format: PkgFormat = 'slpkg', key?: string): string {
+    const abs  = path.resolve(filepath);
+    if (!fs.existsSync(abs)) throw new Error(`no such file: ${abs}`);
+
+    const name    = path.basename(abs, path.extname(abs));
+    const binName = name + '.slasmbin';
+    const ext     = format === 'slpkgz' ? '.slpkgz' : format === 'slpkgj' ? '.slpkgj' : '.slpkg';
+    const outPath = path.join(path.dirname(abs), name + ext);
+
+    const bin     = compileToBin(abs);
+    const meta    = JSON.stringify({ name, main: binName, modules: {} }, null, 2);
+
+    if (format === 'slpkgj') {
+        const json: Record<string, string> = {
+            'slasm.json': meta,
+            [binName]: bin.toString('base64'),
+        };
+        fs.writeFileSync(outPath, JSON.stringify(json, null, 2), 'utf-8');
+    } else {
+        const zip = new AdmZip();
+        zip.addFile('slasm.json', Buffer.from(meta, 'utf-8'));
+        zip.addFile(binName, bin);
+        let buf = zip.toBuffer();
+        if (format === 'slpkgz') buf = zlib.deflateSync(buf);
+        if (key) buf = encrypt(buf, key);
+        fs.writeFileSync(outPath, buf);
     }
 
     return outPath;

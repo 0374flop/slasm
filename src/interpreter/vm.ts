@@ -22,7 +22,7 @@ export type CallFrame = {
 export type NativeExport = {
     args:    number;
     returns: number;
-    fn:      (args: string[]) => string[];
+    fn:      (args: string[], runtime?: Runtime) => string[];
 };
 
 export type Runtime = {

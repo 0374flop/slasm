@@ -42,7 +42,6 @@ function collectProjectFiles(projectRoot: string): string[] {
 
     walk(projectRoot);
 
-    // include installed modules from slasm_modules/ (only those listed in slasm.json)
     const json = readSlasmJson(projectRoot);
     for (const rel of Object.values(json.modules)) {
         const abs = path.join(projectRoot, rel);

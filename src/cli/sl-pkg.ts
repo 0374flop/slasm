@@ -6,7 +6,7 @@ import slasm from "../interpreter";
 import { encryptFile, decryptFile } from "../tools/encrypt";
 import { packFromCli } from "../tools/pkg";
 import { decompileFile } from "../tools/decompiler";
-import convert from "../tools/convert";
+import convert, { packSingleFile } from "../tools/convert";
 
 function readStdin(prompt: string): string {
     process.stderr.write(prompt);
@@ -49,9 +49,15 @@ const helpTexts: Record<string, string> = {
 
   Unpacks a binary file to .slasmjson.`,
 
-    convert: `sl-pkg convert <file> <format> [--key[=]<key>]
+    convert: `sl-pkg convert <file> <format> [--z] [--json] [--key[=]<key>]
 
-  Converts between formats: slasm, slasmjson, slasmbin, slasmz`,
+  Converts between formats: slasm, slasmjson, slasmbin, slasmz.
+  Can also pack a single file into a package:
+    slpkg   → .slpkg  (zip-based)
+    slpkgz  → .slpkgz (compressed)
+    slpkgj  → .slpkgj (json-based)
+
+  --key=<key>  encryption key (only for package output)`,
 
     encrypt: `sl-pkg encrypt <file> --key[=]<key>
 
@@ -93,7 +99,12 @@ const commands: Record<string, Command> = {
     },
     convert: (a) => {
         if (!a[0] || !a[1]) throw new Error('usage: sl-pkg convert <file> <format>');
-        console.log(convert(a[0], a[1], readKey(a)));
+        const PKG_FORMATS = new Set(['slpkg', 'slpkgz', 'slpkgj']);
+        if (PKG_FORMATS.has(a[1])) {
+            console.log(packSingleFile(a[0], a[1] as 'slpkg' | 'slpkgz' | 'slpkgj', readKey(a)));
+        } else {
+            console.log(convert(a[0], a[1], readKey(a)));
+        }
     },
     encrypt: (a) => console.log(encryptFile(a[0], requireKey(a))),
     decrypt: (a) => console.log(decryptFile(a[0], requireKey(a))),
