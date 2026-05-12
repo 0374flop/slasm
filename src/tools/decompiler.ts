@@ -46,6 +46,23 @@ function removeDirSync(dir: string): void {
     fs.rmdirSync(dir);
 }
 
+function loadJsArity(jsFiles: string[], imports: { path: string; namespace: string }[]): Record<string, [number, number]> {
+    const extraArity: Record<string, [number, number]> = {};
+    for (const jsFile of jsFiles) {
+        const jsBasename = path.basename(jsFile);
+        const imp = imports.find(i => path.basename(i.path) === jsBasename);
+        const ns  = imp?.namespace;
+        if (!ns) continue;
+        try {
+            const mod = require(path.resolve(jsFile)) as Record<string, { args?: number; returns?: number }>;
+            for (const [name, def] of Object.entries(mod)) {
+                extraArity[`${ns}.${name}`] = [def.args ?? 0, def.returns ?? 0];
+            }
+        } catch { /* skip unloadable js files */ }
+    }
+    return extraArity;
+}
+
 function decompilePkg(pkgPath: string, key?: string): string {
     const base   = path.basename(pkgPath, path.extname(pkgPath));
     const outDir = path.join(path.dirname(pkgPath), base + '.decompiled');
@@ -54,6 +71,20 @@ function decompilePkg(pkgPath: string, key?: string): string {
     fs.mkdirSync(tmpDir, { recursive: true });
     try {
         const files = unpackProject(pkgPath, tmpDir, key);
+
+        const jsFiles  = files.filter(f => path.extname(f) === '.js');
+        const binFiles = files.filter(f => path.extname(f) === '.slasmbin' || path.extname(f) === '.slasmz');
+        const allImports: { path: string; namespace: string }[] = [];
+        for (const bin of binFiles) {
+            try {
+                let buff = fs.readFileSync(bin);
+                if (path.extname(bin) === '.slasmz') buff = zlib.inflateSync(buff);
+                const [,,,, imports = []] = SLASMBin.unpack(buff);
+                allImports.push(...imports);
+            } catch { /* skip */ }
+        }
+        const extraArity = loadJsArity(jsFiles, allImports);
+
         fs.mkdirSync(outDir, { recursive: true });
         for (const f of files) {
             const rel  = path.relative(tmpDir, f);
@@ -61,7 +92,9 @@ function decompilePkg(pkgPath: string, key?: string): string {
             const ext  = path.extname(f);
             fs.mkdirSync(path.dirname(dest), { recursive: true });
             if (ext === '.slasmbin' || ext === '.slasmz') {
-                const src = decompileFile(f);
+                let buff = fs.readFileSync(f);
+                if (ext === '.slasmz') buff = zlib.inflateSync(buff);
+                const src = decompile(SLASMBin.unpack(buff), extraArity);
                 const out = dest.replace(/\.(slasmbin|slasmz)$/, '.slasm');
                 fs.writeFileSync(out, src, 'utf-8');
             } else {
