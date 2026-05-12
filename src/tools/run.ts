@@ -35,23 +35,24 @@ async function runPkg(pkgPath: string, key?: string): Promise<void> {
     const name   = (meta.name ?? path.basename(pkgPath, path.extname(pkgPath))).replace(/\s+/g, '-');
     const runDir = pkgRunDir(pkgPath, name);
 
-    if (!fs.existsSync(runDir)) {
-        fs.mkdirSync(runDir, { recursive: true });
-        unpackProject(pkgPath, runDir, key);
-    }
+    fs.mkdirSync(runDir, { recursive: true });
+    unpackProject(pkgPath, runDir, key);
 
-    const mainPath = path.join(runDir, meta.main);
-    if (!fs.existsSync(mainPath)) {
-        const binPath = mainPath.replace(/\.slasm$/, '.slasmbin');
-        if (fs.existsSync(binPath)) {
-            await run(binPath);
+    try {
+        const mainPath = path.join(runDir, meta.main);
+        if (!fs.existsSync(mainPath)) {
+            const binPath = mainPath.replace(/\.slasm$/, '.slasmbin');
+            if (fs.existsSync(binPath)) {
+                await run(binPath);
+            } else {
+                throw new Error(`main file not found: ${mainPath}`);
+            }
         } else {
-            throw new Error(`main file not found: ${mainPath}`);
+            await run(mainPath);
         }
-        return;
+    } finally {
+        fs.rmSync(runDir, { recursive: true, force: true });
     }
-
-    await run(mainPath);
 }
 
 export default async function run(filepath: string, key?: string): Promise<void> {
