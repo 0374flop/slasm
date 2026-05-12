@@ -21,6 +21,12 @@ function eval_slasm(program: string, filepath?: string, inputQueue: string[] | n
     return evaluate(instructions, result.labels, result.directives, [], result.imports, basedir, result.exports, inputQueue);
 }
 
+function compile_slasm(program: string): Buffer {
+    const result = parse(tokenize(program));
+    const instructions = preprocess(result.instructions);
+    return SLASMBin.pack([instructions, result.labels, result.comments, result.exports ?? [], result.imports ?? []]);
+}
+
 const slasm = {
     parse,
     preprocess,
@@ -29,6 +35,7 @@ const slasm = {
     evaluate,
     SLASMBin,
     eval_slasm,
+    compile_slasm,
     run,
     decompile,
     decompileFile,

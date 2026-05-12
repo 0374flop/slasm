@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import tokenize from '../interpreter/tokenize.js';
 import parse from '../interpreter/parse.js';
 import SLASMBin from './packunpack.js';
+import slasm from '../interpreter/index.js';
 
 export const GLOBAL_CACHE_DIR = path.join(os.homedir(), '.slasm', 'cache');
 export const CACHE_DIR = GLOBAL_CACHE_DIR;
@@ -105,7 +106,14 @@ export async function installModules(specs: { name: string; src: string }[], for
         let resolvedSrc = src;
         const isUrl   = src.startsWith('https://') || src.startsWith('http://');
         const isLocal = src.startsWith('./') || src.startsWith('../') || path.isAbsolute(src);
-        if (!isUrl && !isLocal) {
+        const isGhShorthand = /^[^/]+\/[^/]+(\/.*)?$/.test(src) && !isUrl && !isLocal;
+        if (isGhShorthand) {
+            const parts = src.split('/');
+            const user  = parts[0];
+            const repo  = parts[1];
+            const rest  = parts.slice(2).join('/');
+            resolvedSrc = `https://raw.githubusercontent.com/${user}/${repo}/master/${rest || 'index.js'}`;
+        } else if (!isUrl && !isLocal) {
             process.stdout.write(`  enter URL or path for module '${name}': `);
             const buf = Buffer.alloc(4096);
             const n = require('node:fs').readSync(0, buf, 0, buf.length, null);
@@ -130,7 +138,13 @@ export async function installModules(specs: { name: string; src: string }[], for
                     console.log(`  cached   ${name} (${resolvedSrc})`);
                 } else {
                     const data = await fetchUrl(resolvedSrc);
-                    fs.writeFileSync(localPath, data);
+                    if (path.extname(resolvedSrc) === '.slasm') {
+                        const bin = slasm.compile_slasm(data.toString('utf-8'));
+                        localPath = localPath.replace(/\.js$/, '.slasmbin');
+                        fs.writeFileSync(localPath, bin);
+                    } else {
+                        fs.writeFileSync(localPath, data);
+                    }
                     console.log(`  installed ${name} ← ${resolvedSrc}`);
                 }
             } else {
