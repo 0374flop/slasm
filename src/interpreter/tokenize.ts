@@ -9,6 +9,15 @@ export default function tokenize(program: string): string[] {
     while (i < program.length) {
         const char = program[i];
 
+        if (char === '/' && program[i + 1] === '/') {
+            if (accumulator !== '') {
+                tokens.push(accumulator);
+                accumulator = '';
+            }
+            while (i < program.length && program[i] !== '\n') i++;
+            continue;
+        }
+
         if (char === ';') {
             if (accumulator !== '') {
                 tokens.push(accumulator);

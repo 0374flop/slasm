@@ -10,7 +10,7 @@ import run from "../tools/run";
 import { decompileFile } from "../tools/decompiler";
 import prettyParse from "./prettyparse";
 import { encryptFile, decryptFile } from "../tools/encrypt";
-import fetchModules, { initProject, findProjectRoot, readSlasmJson, installModules, clearLocalModules } from "../tools/fetch";
+import { initProject, findProjectRoot, readSlasmJson, installModules, clearLocalModules } from "../tools/fetch";
 import { packFromCli } from "../tools/pkg";
 import convert from "../tools/convert";
 
@@ -61,18 +61,15 @@ const helpTexts: Record<string, string> = {
   Creates a slasm.json in the given directory (default: current directory).
   Sets the project name and a default main entry point of main.slasm.`,
 
-    install: `slasm install [url...] [--update]
+    install: `slasm install <url>:<name> [<url>:<name> ...] [--update]
 
-  Installs remote modules into slasm_modules/.
-  With no args, reinstalls all modules listed in slasm.json.
+  Installs a module from a URL or local path into slasm_modules/ and records it in slasm.json.
+  The name is used as the import identifier in your code: ;+name+;
 
-  --update   force re-download even if already cached`,
-
-    fetch: `slasm fetch [file] [--update]
-
-  Downloads remote imports used by a file.
-  If slasm.json exists, saves to slasm_modules/ and updates slasm.json.
-  Otherwise saves to global cache (~/.slasm/cache).
+  Examples:
+    slasm install https://example.com/mylib.js:mylib
+    slasm install ./path/to/lib.js:mylib
+    slasm install                         (reinstall all from slasm.json)
 
   --update   force re-download even if already cached`,
 
@@ -155,29 +152,31 @@ const commands: Record<string, Command> = {
     init: (a) => { initProject(a[0] ?? process.cwd(), a[1]); },
     install: async (a) => {
         const forceUpdate = a.includes('--update');
-        const urls = a.filter(x => !x.startsWith('--'));
-        if (urls.length === 0) {
+        const specs = a.filter(x => !x.startsWith('--'));
+        if (specs.length === 0) {
+            // reinstall all from slasm.json
             const root = findProjectRoot(process.cwd());
             if (!root) throw new Error('no slasm.json found — run: slasm init');
             const json = readSlasmJson(root);
-            const existing = Object.keys(json.modules);
-            if (existing.length === 0) { console.log('nothing to install'); return; }
-            await installModules(existing, forceUpdate);
+            const entries = Object.entries(json.modules);
+            if (entries.length === 0) { console.log('nothing to install'); return; }
+            await installModules(entries.map(([name, src]) => ({ name, src })), forceUpdate);
         } else {
-            await installModules(urls, forceUpdate);
+            // parse "url:name" or "local/path.js:name"
+            const parsed = specs.map(spec => {
+                const colonIdx = spec.lastIndexOf(':');
+                if (colonIdx === -1 || colonIdx === 0) throw new Error(`invalid format '${spec}' — expected <url>:<name>`);
+                // handle windows absolute paths like C:\foo:name
+                // if the part before colon is just one char it's a drive letter, find next colon
+                let splitAt = colonIdx;
+                if (colonIdx === 1 && /^[a-zA-Z]$/.test(spec[0])) {
+                    splitAt = spec.indexOf(':', 2);
+                    if (splitAt === -1) throw new Error(`invalid format '${spec}' — expected <url>:<name>`);
+                }
+                return { src: spec.slice(0, splitAt), name: spec.slice(splitAt + 1) };
+            });
+            await installModules(parsed, forceUpdate);
         }
-    },
-    fetch: async (a) => {
-        const forceUpdate = a.includes('--update');
-        if (a[0] && !a[0].startsWith('--')) {
-            await fetchModules(a[0], forceUpdate);
-            return;
-        }
-        const root = findProjectRoot(process.cwd());
-        if (!root) throw new Error('no slasm.json found — run: slasm init');
-        const json = readSlasmJson(root);
-        if (!json.main) throw new Error('no "main" field in slasm.json');
-        await fetchModules(path.join(root, json.main), forceUpdate);
     },
     'modules-clear': () => {
         const root = findProjectRoot(process.cwd());
@@ -276,7 +275,6 @@ commands:
   repl         interactive REPL
   init         create slasm.json
   install      install modules from slasm.json or URLs
-  fetch        download remote imports
   modules-clear  remove slasm_modules/
   cache-clear  clear global module cache
   parse        parse and print instruction list
