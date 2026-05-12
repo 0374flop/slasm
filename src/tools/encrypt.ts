@@ -14,7 +14,7 @@ export function isEncrypted(buffer: Buffer): boolean {
     return buffer.length >= 4 && buffer.slice(0, 4).toString('ascii') === MAGIC_ENC;
 }
 
-export function encrypt(data: Buffer, key: string): Buffer {
+export function encrypt(data: Buffer, key: string): Buffer<ArrayBuffer> {
     const derivedKey = deriveKey(key);
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
