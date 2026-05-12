@@ -82,6 +82,13 @@ async function fetchUrl(url: string, timeoutMs = 10000): Promise<Buffer> {
     });
 }
 
+const BUILTIN_LIBS_DIR = path.resolve(__dirname, '../../slasm-libs');
+
+function isBuiltin(name: string): boolean {
+    return fs.existsSync(path.join(BUILTIN_LIBS_DIR, name + '.js')) ||
+           fs.existsSync(path.join(BUILTIN_LIBS_DIR, name, 'index.js'));
+}
+
 export async function installModules(specs: { name: string; src: string }[], forceUpdate = false): Promise<void> {
     const projectRoot = findProjectRoot(process.cwd());
     if (!projectRoot) throw new Error('no slasm.json found — run: slasm init');
@@ -90,34 +97,54 @@ export async function installModules(specs: { name: string; src: string }[], for
 
     let ok = 0, fail = 0;
     for (const { name, src } of specs) {
+        if (isBuiltin(name)) {
+            console.log(`  skipped  ${name} — built-in module, no install needed. just use ;+${name}+;`);
+            continue;
+        }
+
+        let resolvedSrc = src;
+        const isUrl   = src.startsWith('https://') || src.startsWith('http://');
+        const isLocal = src.startsWith('./') || src.startsWith('../') || path.isAbsolute(src);
+        if (!isUrl && !isLocal) {
+            process.stdout.write(`  enter URL or path for module '${name}': `);
+            const buf = Buffer.alloc(4096);
+            const n = require('node:fs').readSync(0, buf, 0, buf.length, null);
+            resolvedSrc = buf.slice(0, n).toString().trim();
+            if (!resolvedSrc) {
+                console.log(`  failed   ${name} — no URL provided`);
+                fail++;
+                continue;
+            }
+        }
+
         try {
             let localPath: string;
 
-            if (src.startsWith('https://') || src.startsWith('http://')) {
-                const ext  = path.extname(new URL(src).pathname) || '.js';
+            if (resolvedSrc.startsWith('https://') || resolvedSrc.startsWith('http://')) {
+                const ext  = path.extname(new URL(resolvedSrc).pathname) || '.js';
                 const rel  = path.join(MODULES_DIR, name + ext).replace(/\\/g, '/');
                 localPath  = path.join(projectRoot, rel);
                 fs.mkdirSync(path.dirname(localPath), { recursive: true });
 
                 if (!forceUpdate && fs.existsSync(localPath)) {
-                    console.log(`  cached   ${name} (${src})`);
+                    console.log(`  cached   ${name} (${resolvedSrc})`);
                 } else {
-                    const data = await fetchUrl(src);
+                    const data = await fetchUrl(resolvedSrc);
                     fs.writeFileSync(localPath, data);
-                    console.log(`  installed ${name} ← ${src}`);
+                    console.log(`  installed ${name} ← ${resolvedSrc}`);
                 }
             } else {
-                const abs = path.resolve(src);
+                const abs = path.resolve(resolvedSrc);
                 if (!fs.existsSync(abs)) throw new Error(`file not found: ${abs}`);
                 const ext = path.extname(abs) || '.js';
                 const rel = path.join(MODULES_DIR, name + ext).replace(/\\/g, '/');
                 localPath = path.join(projectRoot, rel);
                 fs.mkdirSync(path.dirname(localPath), { recursive: true });
                 if (!forceUpdate && fs.existsSync(localPath)) {
-                    console.log(`  cached   ${name} (${src})`);
+                    console.log(`  cached   ${name} (${resolvedSrc})`);
                 } else {
                     fs.copyFileSync(abs, localPath);
-                    console.log(`  installed ${name} ← ${src}`);
+                    console.log(`  installed ${name} ← ${resolvedSrc}`);
                 }
             }
 
