@@ -23,10 +23,13 @@
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
-    "@types/adm-zip": "^0.5.8",
-    "@types/node": "^25.5.0"
+    "@types/archiver": "^7.0.0",
+    "@types/node": "^25.5.0",
+    "@types/unzipper": "^0.10.11"
   },
   "dependencies": {
-    "adm-zip": "^0.5.17"
+    "archiver": "^8.0.0",
+    "archiver-zip-encrypted": "^2.0.0",
+    "unzipper": "^0.12.3"
   }
 }

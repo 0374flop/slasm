@@ -86,12 +86,12 @@ const commands: Record<string, Command> = {
         const result = slasm.parse(slasm.tokenize(src));
         console.log(prettyParse(result.instructions, result.labels, result.comments));
     },
-    decompile: (a) => {
+    decompile: async (a) => {
         const file = a.find(x => !x.startsWith('-'));
         if (!file) throw new Error('usage: slasm decompile <file>');
         const ext = path.extname(file);
         const isPkg = ext === '.slpkg' || ext === '.slpkgz' || ext === '.slpkgj';
-        const result = decompileFile(file, readKey(a));
+        const result = await decompileFile(file, readKey(a));
         if (isPkg || a.includes('--out')) {
             const p = path.normalize(file);
             const outPath = path.join(path.dirname(p), path.basename(p, ext) + '.decompiled.slasm');

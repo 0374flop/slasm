@@ -1,7 +1,7 @@
 import fs   from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import AdmZip from 'adm-zip';
+import archiver from 'archiver';
 import slasm from '../interpreter';
 import SLASMBin, { type ParsedSLASM } from './packunpack';
 import decompile from './decompiler';
@@ -77,7 +77,7 @@ function compileToBin(filepath: string): Buffer {
     throw new Error(`cannot compile: ${filepath}`);
 }
 
-export function packSingleFile(filepath: string, format: PkgFormat = 'slpkg', key?: string): string {
+export async function packSingleFile(filepath: string, format: PkgFormat = 'slpkg', key?: string): Promise<string> {
     const abs  = path.resolve(filepath);
     if (!fs.existsSync(abs)) throw new Error(`no such file: ${abs}`);
 
@@ -86,8 +86,8 @@ export function packSingleFile(filepath: string, format: PkgFormat = 'slpkg', ke
     const ext     = format === 'slpkgz' ? '.slpkgz' : format === 'slpkgj' ? '.slpkgj' : '.slpkg';
     const outPath = path.join(path.dirname(abs), name + ext);
 
-    const bin     = compileToBin(abs);
-    const meta    = JSON.stringify({ name, main: binName, modules: {} }, null, 2);
+    const bin  = compileToBin(abs);
+    const meta = JSON.stringify({ name, main: binName, modules: {} }, null, 2);
 
     if (format === 'slpkgj') {
         const json: Record<string, string> = {
@@ -95,15 +95,30 @@ export function packSingleFile(filepath: string, format: PkgFormat = 'slpkg', ke
             [binName]: bin.toString('base64'),
         };
         fs.writeFileSync(outPath, JSON.stringify(json, null, 2), 'utf-8');
-    } else {
-        const zip = new AdmZip();
-        zip.addFile('slasm.json', Buffer.from(meta, 'utf-8'));
-        zip.addFile(binName, bin);
-        let buf = zip.toBuffer();
-        if (format === 'slpkgz') buf = zlib.deflateSync(buf);
-        if (key) buf = encrypt(buf, key);
-        fs.writeFileSync(outPath, buf);
+        return outPath;
     }
+
+    await new Promise<void>((resolve, reject) => {
+        const output = fs.createWriteStream(outPath);
+        let arc: archiver.Archiver;
+        if (key) {
+            // @ts-ignore — archiver-zip-encrypted не имеет типов
+            require('archiver-zip-encrypted');
+            arc = archiver.create('zip-encrypted' as any, {
+                zlib: { level: format === 'slpkgz' ? 9 : 0 },
+                encryptionMethod: 'aes256',
+                password: key,
+            } as any);
+        } else {
+            arc = archiver('zip', { zlib: { level: format === 'slpkgz' ? 9 : 0 } });
+        }
+        output.on('close', resolve);
+        arc.on('error', reject);
+        arc.pipe(output);
+        arc.append(Buffer.from(meta, 'utf-8'), { name: 'slasm.json' });
+        arc.append(bin, { name: binName });
+        arc.finalize();
+    });
 
     return outPath;
 }

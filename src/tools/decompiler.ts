@@ -14,7 +14,7 @@ function lit(val: string): string {
     return val;
 }
 
-export function decompileFile(filepath: string, key?: string): string {
+export function decompileFile(filepath: string, key?: string): string | Promise<string> {
     const p = path.normalize(filepath);
     if (!fs.existsSync(p)) throw new Error(`no such file: ${p}`);
     const ext = path.extname(p);
@@ -63,14 +63,15 @@ function loadJsArity(jsFiles: string[], imports: { path: string; namespace: stri
     return extraArity;
 }
 
-function decompilePkg(pkgPath: string, key?: string): string {
+function decompilePkg(pkgPath: string, key?: string): Promise<string> {
     const base   = path.basename(pkgPath, path.extname(pkgPath));
     const outDir = path.join(path.dirname(pkgPath), base + '.decompiled');
     const tmpDir = outDir + '.tmp';
 
     fs.mkdirSync(tmpDir, { recursive: true });
+    return (async () => {
     try {
-        const files = unpackProject(pkgPath, tmpDir, key);
+        const files = await unpackProject(pkgPath, tmpDir, key);
 
         const jsFiles  = files.filter(f => path.extname(f) === '.js');
         const binFiles = files.filter(f => path.extname(f) === '.slasmbin' || path.extname(f) === '.slasmz');
@@ -108,6 +109,7 @@ function decompilePkg(pkgPath: string, key?: string): string {
     removeDirSync(tmpDir);
 
     return outDir;
+    })();
 }
 
 export default function decompile(parsed: ParsedSLASM, extraArity: Record<string, [number, number]> = {}): string {

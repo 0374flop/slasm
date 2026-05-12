@@ -97,18 +97,18 @@ const commands: Record<string, Command> = {
         if (!file) throw new Error('usage: sl-pkg unpack <file>');
         console.log(convert(file, 'slasmjson', readKey(a)));
     },
-    convert: (a) => {
+    convert: async (a) => {
         if (!a[0] || !a[1]) throw new Error('usage: sl-pkg convert <file> <format>');
         const PKG_FORMATS = new Set(['slpkg', 'slpkgz', 'slpkgj']);
         if (PKG_FORMATS.has(a[1])) {
-            console.log(packSingleFile(a[0], a[1] as 'slpkg' | 'slpkgz' | 'slpkgj', readKey(a)));
+            console.log(await packSingleFile(a[0], a[1] as 'slpkg' | 'slpkgz' | 'slpkgj', readKey(a)));
         } else {
             console.log(convert(a[0], a[1], readKey(a)));
         }
     },
     encrypt: (a) => console.log(encryptFile(a[0], requireKey(a))),
     decrypt: (a) => console.log(decryptFile(a[0], requireKey(a))),
-    decompile: (a) => {
+    decompile: async (a) => {
         const file = a.find(x => !x.startsWith('-'));
         if (!file) throw new Error('usage: sl-pkg decompile <file>');
         const ext = path.extname(file);
@@ -130,7 +130,7 @@ const commands: Record<string, Command> = {
             return;
         }
 
-        const result = decompileFile(file, readKey(a));
+        const result = await decompileFile(file, readKey(a));
         if (isPkg || a.includes('--out')) {
             const p = path.normalize(file);
             const outPath = path.join(path.dirname(p), path.basename(p, ext) + '.decompiled.slasm');

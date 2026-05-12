@@ -28,7 +28,7 @@ function pkgRunDir(pkgPath: string, name: string): string {
 }
 
 async function runPkg(pkgPath: string, key?: string): Promise<void> {
-    const meta = getPackageMeta(pkgPath, key);
+    const meta = await getPackageMeta(pkgPath, key);
     if (!meta) throw new Error(key ? 'wrong key or no slasm.json inside package' : 'package is encrypted or slasm.json not found — provide --key');
     if (!meta.main) throw new Error('no "main" field in package slasm.json');
 
@@ -36,7 +36,7 @@ async function runPkg(pkgPath: string, key?: string): Promise<void> {
     const runDir = pkgRunDir(pkgPath, name);
 
     fs.mkdirSync(runDir, { recursive: true });
-    unpackProject(pkgPath, runDir, key);
+    await unpackProject(pkgPath, runDir, key);
 
     try {
         const mainPath = path.join(runDir, meta.main);

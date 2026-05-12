@@ -1,7 +1,8 @@
 import fs   from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import AdmZip from 'adm-zip';
+import archiver from 'archiver';
+import unzipper from 'unzipper';
 import slasm from '../interpreter';
 import SLASMBin from './packunpack';
 import { findProjectRoot, readSlasmJson, type SlasmJson } from './fetch';
@@ -55,8 +56,7 @@ function compileToSlasmbin(filepath: string): Buffer {
     const ext = path.extname(filepath);
     if (ext === '.slasmbin') return fs.readFileSync(filepath);
     if (ext === '.slasmz') {
-        const buf = zlib.inflateSync(fs.readFileSync(filepath));
-        return buf;
+        return zlib.inflateSync(fs.readFileSync(filepath));
     }
     if (ext === '.slasmjson') {
         const parsed = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
@@ -125,7 +125,7 @@ function isBinaryFile(filepath: string): boolean {
     return false;
 }
 
-export function packProject(projectRoot: string, outPath: string, opts: PackOptions = {}): PackEntry[] {
+export async function packProject(projectRoot: string, outPath: string, opts: PackOptions = {}): Promise<PackEntry[]> {
     const entries = buildPackEntries(projectRoot, opts);
     const fmt     = opts.format ?? 'slpkg';
 
@@ -134,28 +134,47 @@ export function packProject(projectRoot: string, outPath: string, opts: PackOpti
     if (fmt === 'slpkgj') {
         const json = buildJsonPkg(projectRoot, opts);
         fs.writeFileSync(outPath, JSON.stringify(json, null, 2), 'utf-8');
-    } else {
-        const zip = new AdmZip();
+        return entries;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+        const output = fs.createWriteStream(outPath);
+
+        let arc: archiver.Archiver;
+        if (opts.key) {
+            // @ts-ignore — archiver-zip-encrypted не имеет типов
+            require('archiver-zip-encrypted');
+            arc = archiver.create('zip-encrypted' as any, {
+                zlib: { level: fmt === 'slpkgz' ? 9 : 0 },
+                encryptionMethod: 'aes256',
+                password: opts.key,
+            } as any);
+        } else {
+            arc = archiver('zip', {
+                zlib: { level: fmt === 'slpkgz' ? 9 : 0 },
+            });
+        }
+
+        output.on('close', resolve);
+        arc.on('error', reject);
+        arc.pipe(output);
 
         for (const entry of entries) {
             const ext = path.extname(entry.source);
             if (!opts.keepSources && SLASM_EXTS.has(ext)) {
-                zip.addFile(entry.zipPath, compileToSlasmbin(entry.source));
+                arc.append(compileToSlasmbin(entry.source), { name: entry.zipPath });
             } else {
-                zip.addFile(entry.zipPath, fs.readFileSync(entry.source));
+                arc.file(entry.source, { name: entry.zipPath });
             }
         }
 
-        let buf = zip.toBuffer();
-        if (fmt === 'slpkgz') buf = zlib.deflateSync(buf);
-        if (opts.key) buf = encrypt(buf, opts.key);
-        fs.writeFileSync(outPath, buf);
-    }
+        arc.finalize();
+    });
 
     return entries;
 }
 
-export function unpackProject(pkgPath: string, outDir: string, key?: string): string[] {
+export async function unpackProject(pkgPath: string, outDir: string, key?: string): Promise<string[]> {
     const ext     = path.extname(pkgPath);
     const written: string[] = [];
 
@@ -168,22 +187,23 @@ export function unpackProject(pkgPath: string, outDir: string, key?: string): st
             fs.writeFileSync(outFile, isBin ? Buffer.from(content, 'base64') : content, isBin ? undefined : 'utf-8');
             written.push(outFile);
         }
-    } else {
-        let buf = fs.readFileSync(pkgPath);
-        if (isEncrypted(buf)) {
-            if (!key) throw new Error('package is encrypted, provide --key');
-            buf = decrypt(buf, key);
-        }
-        if (ext === '.slpkgz') buf = zlib.inflateSync(buf);
-        const zip     = new AdmZip(buf);
-        const entries = zip.getEntries();
-        for (const entry of entries) {
-            if (entry.isDirectory) continue;
-            const outFile = path.join(outDir, entry.entryName);
-            fs.mkdirSync(path.dirname(outFile), { recursive: true });
-            fs.writeFileSync(outFile, entry.getData());
-            written.push(outFile);
-        }
+        return written;
+    }
+
+    let buf = fs.readFileSync(pkgPath);
+    if (isEncrypted(buf)) {
+        if (!key) throw new Error('package is encrypted, provide --key');
+        buf = decrypt(buf, key);
+    }
+
+    const dir = await unzipper.Open.buffer(buf);
+    for (const file of dir.files) {
+        if (file.type === 'Directory') continue;
+        const outFile = path.join(outDir, file.path);
+        fs.mkdirSync(path.dirname(outFile), { recursive: true });
+        const data = await file.buffer(key);
+        fs.writeFileSync(outFile, data);
+        written.push(outFile);
     }
 
     return written;
@@ -198,7 +218,7 @@ function isBase64(s: string): boolean {
     return /^[A-Za-z0-9+/]+=*$/.test(s.trim());
 }
 
-export function getPackageMeta(pkgPath: string, key?: string): SlasmJson | null {
+export async function getPackageMeta(pkgPath: string, key?: string): Promise<SlasmJson | null> {
     const ext = path.extname(pkgPath);
     try {
         if (ext === '.slpkgj') {
@@ -211,17 +231,16 @@ export function getPackageMeta(pkgPath: string, key?: string): SlasmJson | null 
             if (!key) return null;
             buf = decrypt(buf, key);
         }
-        if (ext === '.slpkgz') buf = zlib.inflateSync(buf);
-        const zip   = new AdmZip(buf);
-        const entry = zip.getEntry('slasm.json');
+        const dir   = await unzipper.Open.buffer(buf);
+        const entry = dir.files.find(f => f.path === 'slasm.json');
         if (!entry) return null;
-        return JSON.parse(entry.getData().toString('utf-8'));
+        return JSON.parse((await entry.buffer()).toString('utf-8'));
     } catch {
         return null;
     }
 }
 
-export function packFromCli(args: string[]): void {
+export async function packFromCli(args: string[]): Promise<void> {
     const keepSources = args.includes('--keep-sources');
     const dryRun      = args.includes('--dry-run');
 
@@ -243,7 +262,7 @@ export function packFromCli(args: string[]): void {
     const ext     = format === 'slpkgz' ? '.slpkgz' : format === 'slpkgj' ? '.slpkgj' : '.slpkg';
     const outPath = path.join(projectRoot, name + ext);
 
-    const entries = packProject(projectRoot, outPath, { keepSources, dryRun, format, key });
+    const entries = await packProject(projectRoot, outPath, { keepSources, dryRun, format, key });
 
     console.log(dryRun ? 'dry run — files that would be packed:' : `packing → ${outPath}`);
     for (const e of entries) {
