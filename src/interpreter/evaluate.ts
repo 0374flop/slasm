@@ -26,8 +26,10 @@ export default function evaluate(
         }
 
         const master = runtime.modules.get('master')!;
-        while (runtime.current === 'master' && master.ip < master.instructions.length) {
+        while (master.ip < master.instructions.length || runtime.current !== 'master') {
             if (runtime.killed) break;
+            const currentVm = runtime.modules.get(runtime.current)!;
+            if (runtime.current !== 'master' && currentVm.ip >= currentVm.instructions.length) break;
             await runInstruction(runtime);
         }
 

@@ -95,7 +95,11 @@ export async function loadModule(filepath: string, namespace: string, runtime: R
         const code = await fsp.readFile(resolved, { encoding: 'utf-8' });
         const result = parse(tokenize(code));
         const instructions = preprocess(result.instructions);
+        const modBasedir = path.dirname(resolved);
         runtime.modules.set(namespace, createVM(namespace, instructions, result.labels, [], result.exports));
+        for (const imp of result.imports) {
+            await loadModule(imp.path, imp.namespace, runtime, modBasedir, imp.key);
+        }
         return;
     }
 
