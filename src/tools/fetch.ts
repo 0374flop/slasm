@@ -85,7 +85,8 @@ function isBuiltin(name: string): boolean {
 
 async function resolveSrc(src: string, name: string): Promise<string | null> {
     const isUrl   = src.startsWith('https://') || src.startsWith('http://');
-    const isLocal = src.startsWith('./') || src.startsWith('../') || path.isAbsolute(src);
+    const isLocal = src.startsWith('./') || src.startsWith('../') || path.isAbsolute(src)
+                 || fs.existsSync(path.join(process.cwd(), src)); // e.g. slasm_modules/mylib.js
     const isGhShorthand = /^[^/]+\/[^/]+(\/.*)?$/.test(src) && !isUrl && !isLocal;
 
     if (isGhShorthand) {
@@ -168,7 +169,11 @@ export async function installModules(specs: { name: string; src: string }[], for
             const localPath = await downloadModule(resolvedSrc, name, projectRoot, forceUpdate);
 
             const json = readSlasmJson(projectRoot);
-            json.modules[name] = path.relative(projectRoot, localPath).replace(/\\/g, '/');
+            const isRemote = resolvedSrc.startsWith('https://') || resolvedSrc.startsWith('http://');
+            // remote → store original url so re-install works; local → store relative path
+            json.modules[name] = isRemote
+                ? resolvedSrc
+                : path.relative(projectRoot, localPath).replace(/\\/g, '/');
             writeSlasmJson(projectRoot, json);
             ok++;
         } catch (e) {
