@@ -59,7 +59,7 @@ export default async function runInstruction(runtime: Runtime): Promise<void> {
                 if (val === undefined) throw new Error(`${op}: not enough arguments (need ${exp.args})`);
                 argVals.unshift(val);
             }
-            const results = exp.fn(argVals, runtime) ?? [];
+            const results = await (exp.fn(argVals, runtime) ?? []);
             for (const r of results) vm.stack.push(r);
             vm.ip++;
             return;
@@ -107,7 +107,7 @@ export default async function runInstruction(runtime: Runtime): Promise<void> {
                         if (val === undefined) throw new Error(`${op}: not enough arguments (need ${exp.args})`);
                         argVals.unshift(val);
                     }
-                    const results = exp.fn(argVals, runtime) ?? [];
+                    const results = await (exp.fn(argVals, runtime) ?? []);
                     for (const r of results) vm.stack.push(r);
                     vm.ip++;
                     return;

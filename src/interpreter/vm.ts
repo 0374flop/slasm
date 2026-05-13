@@ -28,6 +28,7 @@ export type NativeExport = {
 export type Runtime = {
     modules:       Map<string, VM>;
     nativeModules: Map<string, Map<string, NativeExport>>;
+    pendingEvents: { name: string; args: any[] }[];
     clog:          string[];
     callstack:     CallFrame[];
     current:       string;
@@ -68,6 +69,7 @@ export function createRuntime(
     return {
         modules:       new Map([['master', master]]),
         nativeModules: new Map(),
+        pendingEvents: [],
         clog:          [],
         callstack:     [],
         current:       'master',

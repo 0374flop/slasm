@@ -1,0 +1,15 @@
+;+udp+;
+
+(jump (gln main))
+
+;=onmessage:3:0=;
+(clog)
+(clog)
+(clog)
+(ret)
+
+;-main-;
+(W 1 (udp.open))
+(udp.bind (R 1) 9999)
+(clog "server listening on: 9999")
+(on (~ "udp:message:" (R 1)) (fref "onmessage"))

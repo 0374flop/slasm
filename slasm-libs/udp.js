@@ -38,21 +38,31 @@ module.exports = {
 
     bind: {
         args: 2, returns: 0,
-        fn: ([id, port]) => {
+        fn: async ([id, port]) => {
             const s = sockets.get(id);
             if (!s) throw new Error(`udp: no socket ${id}`);
-            s.sock.bind({ port: Number(port), address: '0.0.0.0', exclusive: false });
+            await new Promise((resolve, reject) => {
+                s.sock.bind({ port: Number(port), address: '0.0.0.0', exclusive: false }, (err) => {
+                    if (err) reject(err);
+                    else resolve(undefined);
+                });
+            });
             return [];
         }
     },
 
     send: {
         args: 4, returns: 0,
-        fn: ([id, msg, host, port]) => {
+        fn: async ([id, msg, host, port]) => {
             const s = sockets.get(id);
             if (!s) throw new Error(`udp: no socket ${id}`);
             const buf = Buffer.from(msg);
-            s.sock.send(buf, 0, buf.length, Number(port), host);
+            await new Promise((resolve, reject) => {
+                s.sock.send(buf, 0, buf.length, Number(port), host, (err) => {
+                    if (err) reject(err);
+                    else resolve(undefined);
+                });
+            });
             return [];
         }
     },

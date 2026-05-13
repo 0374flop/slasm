@@ -1,0 +1,4 @@
+;+udp+;
+(W 1 (udp.open))
+(udp.send (R 1) "Hello from slasm client!" "127.0.0.1" 9999)
+(clog "message sent!")
