@@ -28,10 +28,12 @@ export type PackEntry = {
 function collectProjectFiles(projectRoot: string): string[] {
     const result: string[] = [];
     const ignored = new Set(['node_modules', 'slasm_modules', '.slasm', 'lib', '.git']);
+    const ignoredExts = new Set(['.slpkg', '.slpkgz', '.slpkgj']);
 
     function walk(dir: string) {
         for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
             if (ignored.has(entry.name)) continue;
+            if (entry.isFile() && ignoredExts.has(path.extname(entry.name))) continue;
             const full = path.join(dir, entry.name);
             if (entry.isDirectory()) {
                 walk(full);

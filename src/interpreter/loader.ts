@@ -60,6 +60,15 @@ function resolve(filepath: string, basedir: string): string {
     // local path (./foo.js, ../bar.slasm, etc.)
     const p = path.resolve(basedir, filepath);
     if (fs.existsSync(p)) return p;
+
+    // fallback: .slasm → .slasmbin or .slasmz
+    if (path.extname(p) === '.slasm') {
+        const bin = p.replace(/\.slasm$/, '.slasmbin');
+        if (fs.existsSync(bin)) return bin;
+        const binz = p.replace(/\.slasm$/, '.slasmz');
+        if (fs.existsSync(binz)) return binz;
+    }
+
     for (const ext of EXTENSIONS) {
         const withExt = p + ext;
         if (fs.existsSync(withExt)) return withExt;
