@@ -43,7 +43,7 @@ export const strings: Map<string, Handler> = new Map([
     ['S', (rt) => {
         const v = vm(rt);
         const n = Number(v.stack.pop());
-        v.stack.push(' .,();-'[n] ?? '');
+        v.stack.push(' .,!?+-*/_…()'[n] ?? '');
         v.ip++;
     }],
 ]);

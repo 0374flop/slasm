@@ -1,8 +1,0 @@
-;+udp+;
-(W 1 (udp.open 1))
-(wait 100)
-(udp.send (R 1) "Hello from slasm client!" "localhost" 9999)
-
-(clog "message sent!")
-
-(udp.close (R 1))
