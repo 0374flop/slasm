@@ -4,6 +4,8 @@
 (ret (testlib.upper))
 
 ;=testf2:1:1=;
-(W 1)
+1
+(swap)
+(W)
 (clog (R 1))
 (ret (testlib.upper (R 1)))
