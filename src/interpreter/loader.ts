@@ -129,11 +129,11 @@ export async function loadModule(filepath: string, namespace: string, runtime: R
     if (ext === '.slasmz') {
         const inflated = await inflateAsync(buff);
         buff = Buffer.from(inflated);
-        const [instr, lbls] = SLASMBin.unpack(buff);
-        runtime.modules.set(namespace, createVM(namespace, instr.map(String), lbls));
+        const [instr, lbls, , exps] = SLASMBin.unpack(buff);
+        runtime.modules.set(namespace, createVM(namespace, instr.map(String), lbls, [], exps ?? []));
         return;
     }
 
-    const [instr, lbls] = SLASMBin.unpack(buff);
-    runtime.modules.set(namespace, createVM(namespace, instr.map(String), lbls));
+    const [instr, lbls, , exps] = SLASMBin.unpack(buff);
+    runtime.modules.set(namespace, createVM(namespace, instr.map(String), lbls, [], exps ?? []));
 }
