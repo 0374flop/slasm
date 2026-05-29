@@ -1,0 +1,11 @@
+;+./any.slasm:any+;
+;+testlib+;
+
+(jump (gln main))
+
+(clog "ето не выполниться даже")
+
+;-main-;
+(clog (any.testf "ну текст какойто"))
+
+(clog (any.testf2 'super text oh yeah'))

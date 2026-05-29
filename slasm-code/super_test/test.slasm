@@ -1,0 +1,10 @@
+(jump (gln main))
+
+;=super:1:1=;
+1
+(swap)
+(W)
+(ret (R 1))
+
+;-main-;
+(clog (super 12))

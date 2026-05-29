@@ -84,12 +84,12 @@ const helpTexts: Record<string, string> = {
 };
 
 const commands: Record<string, Command> = {
-    pack: (a) => {
+    pack: async (a) => {
         const file = a.find(x => !x.startsWith('-'));
         if (file && (file.endsWith('.slasm') || file.endsWith('.slasmbin') || file.endsWith('.slasmz') || file.endsWith('.slasmjson'))) {
             console.log(slasm.SLASMBin.packFile(file, a.includes('--z'), readKey(a)));
         } else {
-            packFromCli(a);
+            await packFromCli(a);
         }
     },
     unpack: (a) => {
