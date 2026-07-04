@@ -131,7 +131,9 @@ const commands: Record<string, Command> = {
         }
 
         const result = await decompileFile(file, readKey(a));
-        if (isPkg || a.includes('--out')) {
+        if (isPkg) {
+            console.log(result);
+        } else if (a.includes('--out')) {
             const p = path.normalize(file);
             const outPath = path.join(path.dirname(p), path.basename(p, ext) + '.decompiled.slasm');
             fs.writeFileSync(outPath, result, { encoding: 'utf-8' });

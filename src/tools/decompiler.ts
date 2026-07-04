@@ -63,6 +63,26 @@ function loadJsArity(jsFiles: string[], imports: { path: string; namespace: stri
     return extraArity;
 }
 
+function loadSlasmArity(binFiles: string[], imports: { path: string; namespace: string }[]): Record<string, [number, number]> {
+    const extraArity: Record<string, [number, number]> = {};
+    for (const bin of binFiles) {
+        const binBasename = path.basename(bin, path.extname(bin));
+        const imp = imports.find(i => path.basename(i.path, path.extname(i.path)) === binBasename);
+        const ns  = imp?.namespace;
+        if (!ns) continue;
+        try {
+            let buff = fs.readFileSync(bin);
+            if (path.extname(bin) === '.slasmz') buff = zlib.inflateSync(buff);
+            const [,,, exports = []] = SLASMBin.unpack(buff);
+            for (const exp of exports) {
+                extraArity[`${ns}.${exp.name}`] = [exp.args, exp.returns];
+                extraArity[exp.name] = [exp.args, exp.returns];
+            }
+        } catch { /* skip */ }
+    }
+    return extraArity;
+}
+
 function decompilePkg(pkgPath: string, key?: string): Promise<string> {
     const base   = path.basename(pkgPath, path.extname(pkgPath));
     const outDir = path.join(path.dirname(pkgPath), base + '.decompiled');
@@ -84,7 +104,7 @@ function decompilePkg(pkgPath: string, key?: string): Promise<string> {
                 allImports.push(...imports);
             } catch { /* skip */ }
         }
-        const extraArity = loadJsArity(jsFiles, allImports);
+        const extraArity = { ...loadJsArity(jsFiles, allImports), ...loadSlasmArity(binFiles, allImports) };
 
         fs.mkdirSync(outDir, { recursive: true });
         for (const f of files) {
