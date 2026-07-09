@@ -23,9 +23,9 @@ export const introspect: Map<string, Handler> = new Map([
         v.ip++;
     }],
     ['SO', (rt) => {
-        const v    = vm(rt);
-        const cell = Number(v.stack.pop());
+        const v  = vm(rt);
         const newOp = v.stack.pop() ?? '';
+        const cell = Number(v.stack.pop());
         if (cell < 1 || cell > v.instructions.length) throw new Error(`SO: cell ${cell} out of range`);
         v.instructions[cell - 1] = newOp;
         v.ip++;
