@@ -17,7 +17,6 @@ export type Runtime = {
     clog: string[];
     emitter: SlasmProcess;
     inputQueue: string[] | null;
-    killed: boolean;
 };
 
 export function createRuntime(
@@ -36,6 +35,5 @@ export function createRuntime(
         clog: [],
         emitter,
         inputQueue,
-        killed: false,
     };
 }

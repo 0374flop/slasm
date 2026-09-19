@@ -13,32 +13,17 @@ export const control: Map<string, Handler> = new Map([
     }],
     ['jump', (rt) => {
         const target = Number(rt.stack.pop());
-        if (target < 1 || target > rt.instructions.length) throw new Error(`jump: target ${target} out of range`);
+        if (target < 1 || target > rt.instructions.length+1) throw new Error(`jump: target ${target} out of range`);
         rt.ip = target - 1;
     }],
     ['?', (rt) => {
         const target = Number(rt.stack.pop());
         const cond   = rt.stack.pop();
         if (cond === 'true') {
-            if (target < 1 || target > rt.instructions.length) throw new Error(`?: target ${target} out of range`);
+            if (target < 1 || target > rt.instructions.length+1) throw new Error(`?: target ${target} out of range`);
             rt.ip = target - 1;
         } else {
             rt.ip++;
         }
-    }],
-    ['call', (rt) => {
-        const target = Number(rt.stack.pop());
-        if (target < 1 || target > rt.instructions.length) throw new Error(`call: target ${target} out of range`);
-        rt.callstack.push({ ip: rt.ip + 1, returns: 0, stackBase: rt.stack.length });
-        rt.ip = target - 1;
-    }],
-    ['ret', (rt) => {
-        const frame = rt.callstack.pop();
-        if (!frame) throw new Error('ret: callstack is empty');
-        rt.ip = frame.ip;
-    }],
-    ['csnum', (rt) => {
-        rt.stack.push(String(rt.callstack.length));
-        rt.ip++;
     }],
 ]);

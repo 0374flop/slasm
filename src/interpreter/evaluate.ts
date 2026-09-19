@@ -15,7 +15,6 @@ export default function evaluate(
 
     const run = async () => {
         while (runtime.ip < runtime.instructions.length) {
-            if (runtime.killed) break;
             await runInstruction(runtime);
         }
         proc.emit('done', runtime.clog);
@@ -29,7 +28,6 @@ export default function evaluate(
     });
 
     proc.result = promise;
-    proc.kill = () => { runtime.killed = true; };
 
     return proc;
 }
