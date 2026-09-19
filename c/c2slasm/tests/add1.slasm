@@ -1,0 +1,30 @@
+(jump (gln main))
+;-add-;
+(W 102 (+ (R 100) (R 101)))
+(jump (R 103))
+(jump (R 103))
+;-main-;
+(W 104 0)
+(W 104 0)
+(R 104)
+(W 105 0)
+(W 105 0)
+(R 105)
+;-wstart_0-;
+(? (! (< (R 105) 5)) (gln wend_1))
+(W 104 (W 100 (R 104))
+(W 101 (R 105))
+(W 103 (gln callret_2))
+(jump (gln add))
+;-callret_2-;
+(R 102))
+(R 104)
+(W 105 (+ (R 105) 1))
+(R 105)
+(jump (gln wstart_0))
+;-wend_1-;
+(W 106 (R 104))
+(jump (gln program_end))
+(jump (gln program_end))
+;-program_end-;
+(clog (R 106))
