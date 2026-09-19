@@ -1,6 +1,5 @@
 import parse from './parse.js';
 import tokenize from './tokenize.js';
-import preprocess from './preprocess.js';
 import evaluate from './evaluate.js';
 import logger from '../output.js';
 
@@ -10,13 +9,11 @@ export { SlasmProcess } from './process.js';
 
 function eval_slasm(program: string, inputQueue: string[] | null = null) {
     const result = parse(tokenize(program));
-    const instructions = preprocess(result.instructions);
-    return evaluate(instructions, result.labels, [], inputQueue);
+    return evaluate(result.instructions, result.labels, [], inputQueue);
 }
 
 const slasm = {
     parse,
-    preprocess,
     logger,
     tokenize,
     evaluate,
