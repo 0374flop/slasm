@@ -28,11 +28,30 @@ async function runFile(file: string): Promise<void> {
 
 type Command = (args: string[]) => void | Promise<void>;
 
+async function readStdin(): Promise<string> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks).toString('utf-8');
+}
+
+async function readInput(a: string[], usage: string): Promise<string> {
+    if (a.length > 0) {
+        return fs.existsSync(a[0])
+            ? fs.readFileSync(a[0], { encoding: 'utf-8' })
+            : a.join(' ');
+    }
+    if (process.stdin.isTTY) throw new Error(usage);
+    return readStdin();
+}
+
 const helpTexts: Record<string, string> = {
     run: `slasm run <file>\n\n  Runs a .slasm file.`,
     eval: `slasm eval <code>\n\n  Evaluates a snippet of SLASM code directly from the command line.`,
     repl: `slasm repl\n\n  Starts an interactive SLASM REPL.`,
-    parse: `slasm parse <file|code>\n\n  Parses a .slasm file or inline code and prints the instruction list with labels.`,
+    parse: `slasm parse <file|code>\n\n  Parses a .slasm file or inline code and prints the instruction list with labels.\n  With no argument, reads code from stdin.`,
+    decompile: `slasm decompile <file.json|json>\n\n  Turns a flat instruction array into readable slasm code.\n  Input is JSON [instructions, labels?, comments?] (what 'slasm compile' outputs):\n  a file, the JSON itself as an argument, or stdin when no argument is given.`,
+    compile: `slasm compile <file|code>\n\n  Compiles slasm code to JSON: [instructions, labels, comments].\n  Input is a .slasm file, inline code, or stdin when no argument is given.\n  Feed the result to 'slasm decompile'.`,
+    format: `slasm format <file|code>\n\n  Prints slasm code in a normalized, pretty form.\n  Takes slasm text only: a .slasm file, inline code, or stdin when no argument is given.`,
 };
 
 const commands: Record<string, Command> = {
@@ -49,12 +68,32 @@ const commands: Record<string, Command> = {
         await repl();
         process.exit(0);
     },
-    parse: (a) => {
-        const src = fs.existsSync(a[0])
-            ? fs.readFileSync(a[0], { encoding: 'utf-8' })
-            : a.join(' ');
+    parse: async (a) => {
+        const src = await readInput(a, 'usage: slasm parse <file|code>  (or pipe code via stdin)');
         const result = slasm.parse(slasm.tokenize(src));
         console.log(prettyParse(result.instructions, result.labels, result.comments));
+    },
+    decompile: async (a) => {
+        const src = await readInput(a, 'usage: slasm decompile <file.json|json>  (or pipe JSON via stdin)');
+        let data: unknown;
+        try {
+            data = JSON.parse(src);
+        } catch {
+            throw new Error('decompile: input is not valid JSON');
+        }
+        if (!Array.isArray(data) || !Array.isArray(data[0])) {
+            throw new Error('decompile: expected JSON [instructions, labels?, comments?]');
+        }
+        const [instr, labels, comments] = data;
+        console.log(slasm.decompile(instr, labels ?? [], comments ?? []));
+    },
+    compile: async (a) => {
+        const src = await readInput(a, 'usage: slasm compile <file|code>  (or pipe code via stdin)');
+        console.log(JSON.stringify(slasm.compile(src)));
+    },
+    format: async (a) => {
+        const src = await readInput(a, 'usage: slasm format <file|code>  (or pipe code via stdin)');
+        console.log(slasm.format(src));
     },
     help: () => {
         console.log(`slasm
@@ -67,13 +106,24 @@ commands:
   run <file>     run a .slasm file
   eval <code>    evaluate inline SLASM code
   repl           interactive REPL
-  parse <file|code>  parse and print instruction list
+  parse [file|code]       parse and print instruction list
+  format [file|code]      pretty-print slasm code
+  compile [file|code]     slasm code -> JSON [instructions, labels, comments]
+  decompile [file|json]   JSON -> readable slasm code
+  (parse/format/compile/decompile read stdin when given no argument)
   help`);
     },
 };
 
 const args  = process.argv.slice(2);
 const first = args[0];
+
+function exit(code: number): void {
+    let pending = 2;
+    const done = () => { if (--pending === 0) process.exit(code); };
+    process.stdout.write('', done);
+    process.stderr.write('', done);
+}
 
 (async () => {
     if (!first) {
@@ -85,27 +135,31 @@ const first = args[0];
         const a = args.slice(1);
         if (a.includes('-h') || a.includes('--help')) {
             console.log(helpTexts[first] ?? `no help available for '${first}'`);
-            process.exit(0);
+            exit(0);
+            return;
         }
         try {
             await commands[first](a);
         } catch (e) {
             console.error(e instanceof Error ? e.message : e);
-            process.exit(1);
+            exit(1);
+            return;
         }
-        process.exit(0);
+        exit(0);
+        return;
     }
 
     if (fs.existsSync(first)) {
         try {
             await runFile(first);
-            process.exit(0);
+            exit(0);
         } catch (e) {
             console.error(e instanceof Error ? e.message : e);
-            process.exit(1);
+            exit(1);
         }
+        return;
     }
 
     commands.help([]);
-    process.exit(1);
+    exit(1);
 })();

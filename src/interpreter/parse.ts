@@ -3,14 +3,16 @@ import * as Types from './types'
 export default function parse(tokens: string[]): Types.ParseResult {
     const instructions: string[] = [];
     const operatorstack: string[] = [];
-    const labels:   Types.label[]   = [];
+    const labels: Types.label[]   = [];
     const comments: Types.comment[] = [];
 
-    while (tokens.length > 0) {
-        const token = tokens.shift()!;
+    let pos = 0;
+
+    while (pos < tokens.length) {
+        const token = tokens[pos++];
 
         if (token === '(') {
-            operatorstack.push(tokens.shift()!);
+            operatorstack.push(tokens[pos++]);
             continue;
         }
 
