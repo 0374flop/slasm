@@ -15,21 +15,21 @@ export const strings: Map<string, Handler> = new Map([
     }],
     ['rep', (rt) => {
         const text = rt.stack.pop() ?? '';
-        const n    = Number(rt.stack.pop());
+        const n = Number(rt.stack.pop());
         rt.stack.push(text.repeat(n));
         rt.ip++;
     }],
     ['char', (rt) => {
-        const n   = Number(rt.stack.pop());
+        const n = Number(rt.stack.pop());
         const str = rt.stack.pop() ?? '';
         rt.stack.push(str[n] ?? '');
         rt.ip++;
     }],
     ['L', (rt) => {
         const upper = Number(rt.stack.pop());
-        const id    = Number(rt.stack.pop());
-        const SRC   = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        const src   = ' abcdefghijklmnopqrstuvwxyz';
+        const id = Number(rt.stack.pop());
+        const SRC = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const src = ' abcdefghijklmnopqrstuvwxyz';
         rt.stack.push(upper === 1 ? SRC[id] : src[id]);
         rt.ip++;
     }],

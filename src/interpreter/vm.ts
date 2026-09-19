@@ -11,7 +11,7 @@ export type Runtime = {
     instructions: string[];
     labels: label[];
     stack: string[];
-    memory: Map<string, string>;
+    memory: Map<number, string>;
     ip: number;
     callstack: CallFrame[];
     clog: string[];
@@ -29,7 +29,7 @@ export function createRuntime(
         instructions,
         labels,
         stack: [],
-        memory: new Map<string, string>(),
+        memory: new Map<number, string>(),
         ip: 0,
         callstack: [],
         clog: [],

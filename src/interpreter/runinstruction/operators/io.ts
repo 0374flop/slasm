@@ -11,23 +11,6 @@ export const io: Map<string, Handler> = new Map([
         rt.emitter.emit('output', val);
         rt.ip++;
     }],
-    ['cnum', (rt) => {
-        rt.stack.push(String(rt.clog.length - 1));
-        rt.ip++;
-    }],
-    ['cchan', (rt) => {
-        const n   = Number(rt.stack.pop());
-        const val = rt.stack.pop() ?? '';
-        if (n < 0 || n >= rt.clog.length) throw new Error(`cchan: index ${n} out of range`);
-        rt.clog[n] = val;
-        rt.ip++;
-    }],
-    ['cget', (rt) => {
-        const n = Number(rt.stack.pop());
-        if (n < 0 || n >= rt.clog.length) throw new Error(`cget: index ${n} out of range`);
-        rt.stack.push(rt.clog[n]);
-        rt.ip++;
-    }],
     ['q', async (rt) => {
         if (rt.inputQueue !== null) {
             if (rt.inputQueue.length === 0) {
