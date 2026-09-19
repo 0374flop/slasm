@@ -1,33 +1,39 @@
 import logger from "../output.js";
 
+const WHITESPACE = ' \n\t\r';
+
 export default function tokenize(program: string): string[] {
     logger.log('begin tokenize: ', program);
     let accumulator: string = '';
     let tokens: Array<string> = [];
     let i = 0;
+    let line = 1;
+
+    const flush = () => {
+        if (accumulator !== '') {
+            tokens.push(accumulator);
+            accumulator = '';
+        }
+    };
 
     while (i < program.length) {
         const char = program[i];
 
-        if (char === '/' && program[i + 1] === '/') {
-            if (accumulator !== '') {
-                tokens.push(accumulator);
-                accumulator = '';
-            }
-            while (i < program.length && program[i] !== '\n') i++;
-            continue;
-        }
-
         if (char === ';') {
-            if (accumulator !== '') {
-                tokens.push(accumulator);
-                accumulator = '';
-            }
+            flush();
+            const startLine = line;
             let block = ';';
             i++;
             while (i < program.length && program[i] !== ';') {
-                block += program[i];
+                const c = program[i];
+                if (WHITESPACE.includes(c)) {
+                    throw new SyntaxError(`line ${startLine}: whitespace inside ';...;' block`);
+                }
+                block += c;
                 i++;
+            }
+            if (i >= program.length) {
+                throw new SyntaxError(`line ${startLine}: unclosed ';' block`);
             }
             block += ';';
             tokens.push(block);
@@ -35,29 +41,12 @@ export default function tokenize(program: string): string[] {
             continue;
         }
 
-        if (char === '"' || char === "'" || char === '`') {
-            if (accumulator !== '') {
-                tokens.push(accumulator);
-                accumulator = '';
-            }
-            const quote = char;
-            let str = '';
-            i++;
-            while (i < program.length && program[i] !== quote) {
-                str += program[i];
-                i++;
-            }
-            tokens.push(str);
-            i++;
-            continue;
-        }
-
-        if ('() \n\t\r'.includes(char)) {
-            if (accumulator !== '') {
-                tokens.push(accumulator);
-                accumulator = '';
-            }
-            if ('()'.includes(char)) tokens.push(char);
+        if (WHITESPACE.includes(char)) {
+            flush();
+            if (char === '\n') line++;
+        } else if (char === '(' || char === ')') {
+            flush();
+            tokens.push(char);
         } else {
             accumulator += char;
         }
@@ -65,9 +54,7 @@ export default function tokenize(program: string): string[] {
         i++;
     }
 
-    if (accumulator !== '') {
-        tokens.push(accumulator);
-    }
+    flush();
 
     logger.log('end tokenize: ', program, ',', tokens);
     return tokens;

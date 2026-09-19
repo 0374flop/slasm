@@ -1,0 +1,2 @@
+(clog (JOIN hello world))
+(clearstack)

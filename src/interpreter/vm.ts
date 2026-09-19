@@ -1,81 +1,41 @@
-import type { label, directive, exportDef } from './types.js';
+import type { label } from './types.js';
 import type { SlasmProcess } from './process.js';
 
-export type VM = {
-    namespace:    string;
-    instructions: string[];
-    labels:       label[];
-    exports:      exportDef[];
-    stack:        string[];
-    memory:       Map<string, string>;
-    ip:           number;
-    directives:   directive[];
-};
-
 export type CallFrame = {
-    namespace:  string;
-    ip:         number;
-    returns:    number;
-    stackBase:  number;
-};
-
-export type NativeExport = {
-    args:    number;
+    ip: number;
     returns: number;
-    fn:      (args: string[], runtime?: Runtime) => string[];
+    stackBase: number;
 };
 
 export type Runtime = {
-    modules:       Map<string, VM>;
-    nativeModules: Map<string, Map<string, NativeExport>>;
-    pendingEvents: { name: string; args: any[] }[];
-    clog:          string[];
-    callstack:     CallFrame[];
-    current:       string;
-    emitter:       SlasmProcess;
-    events:        Map<string, string[]>;
-    inputQueue:    string[] | null;
-    killed:        boolean;
+    instructions: string[];
+    labels: label[];
+    stack: string[];
+    memory: Map<string, string>;
+    ip: number;
+    callstack: CallFrame[];
+    clog: string[];
+    emitter: SlasmProcess;
+    inputQueue: string[] | null;
+    killed: boolean;
 };
-
-export function createVM(
-    namespace:    string,
-    instructions: string[],
-    labels:       label[],
-    directives:   directive[] = [],
-    exports:      exportDef[] = [],
-): VM {
-    return {
-        namespace,
-        instructions,
-        labels,
-        exports,
-        stack:     [],
-        memory:    new Map<string, string>(),
-        ip:        0,
-        directives,
-    };
-}
 
 export function createRuntime(
     instructions: string[],
-    labels:       label[],
-    directives:   directive[] = [],
-    exports:      exportDef[] = [],
-    emitter:      SlasmProcess,
-    inputQueue:   string[] | null = null,
+    labels: label[],
+    emitter: SlasmProcess,
+    inputQueue: string[] | null = null,
 ): Runtime {
-    const master = createVM('master', instructions, labels, directives, exports);
     return {
-        modules:       new Map([['master', master]]),
-        nativeModules: new Map(),
-        pendingEvents: [],
-        clog:          [],
-        callstack:     [],
-        current:       'master',
+        instructions,
+        labels,
+        stack: [],
+        memory: new Map<string, string>(),
+        ip: 0,
+        callstack: [],
+        clog: [],
         emitter,
-        events:        new Map(),
         inputQueue,
-        killed:        false,
+        killed: false,
     };
 }

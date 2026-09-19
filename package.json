@@ -8,9 +8,7 @@
     "build": "tsc"
   },
   "bin": {
-    "slasm": "lib/cli/sl-main.js",
-    "sl-pm": "lib/cli/sl-pm.js",
-    "sl-pkg": "lib/cli/sl-pkg.js"
+    "slasm": "lib/cli/sl-main.js"
   },
   "keywords": [
     "slasm",
@@ -23,13 +21,7 @@
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
-    "@types/archiver": "^7.0.0",
     "@types/node": "^25.5.0",
-    "@types/unzipper": "^0.10.11"
-  },
-  "dependencies": {
-    "archiver": "^5.3.2",
-    "archiver-zip-encrypted": "^2.0.0",
-    "unzipper": "^0.12.3"
+    "typescript": "^6.0.3"
   }
 }

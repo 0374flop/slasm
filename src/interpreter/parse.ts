@@ -1,23 +1,18 @@
 import * as Types from './types'
 
-function parseInner(content: string): string[] {
-    return content.split(':');
-}
-
 export default function parse(tokens: string[]): Types.ParseResult {
     const instructions: string[] = [];
     const operatorstack: string[] = [];
-    const labels:     Types.label[]     = [];
-    const comments:   Types.comment[]   = [];
-    const directives: Types.directive[] = [];
-    const exports:    Types.exportDef[] = [];
-    const imports:    Types.importDef[] = [];
+    const labels: Types.label[]   = [];
+    const comments: Types.comment[] = [];
 
-    while (tokens.length > 0) {
-        const token = tokens.shift()!;
+    let pos = 0;
+
+    while (pos < tokens.length) {
+        const token = tokens[pos++];
 
         if (token === '(') {
-            operatorstack.push(tokens.shift()!);
+            operatorstack.push(tokens[pos++]);
             continue;
         }
 
@@ -28,62 +23,9 @@ export default function parse(tokens: string[]): Types.ParseResult {
 
         if (token[0] === ';' && token[token.length - 1] === ';') {
             const inner = token.slice(1, token.length - 1);
-            const marker = inner[0];
-            const markerEnd = inner[inner.length - 1];
-            const ip = instructions.length + 1;
 
-            if (marker === '-' && markerEnd === '-') {
-                const body = inner.slice(1, inner.length - 1);
-                const parts = parseInner(body);
-                if (parts.length === 3) {
-                    labels.push({ ip, name: parts[0] });
-                } else {
-                    labels.push({ ip, name: body });
-                }
-
-            } else if (marker === '=' && markerEnd === '=') {
-                const body = inner.slice(1, inner.length - 1);
-                const parts = parseInner(body);
-                if (parts.length === 3) {
-                    exports.push({
-                        ip,
-                        name:    parts[0],
-                        args:    Number(parts[1]),
-                        returns: Number(parts[2]),
-                    });
-                    labels.push({ ip, name: parts[0] });
-                } else {
-                    exports.push({ ip, name: body, args: 0, returns: 0 });
-                    labels.push({ ip, name: body });
-                }
-
-            } else if (marker === '+' && markerEnd === '+') {
-                const body = inner.slice(1, inner.length - 1).trim();
-                const parts = body.split(':');
-                if (parts.length === 3) {
-                    imports.push({
-                        path:      parts[0].trim(),
-                        key:       parts[1].trim(),
-                        namespace: parts[2].trim(),
-                    });
-                } else if (parts.length === 2) {
-                    imports.push({
-                        path:      parts[0].trim(),
-                        namespace: parts[1].trim(),
-                    });
-                } else {
-                    const ns = body.trim().split('/').pop()?.replace(/\.\w+$/, '') ?? body;
-                    imports.push({ path: body.trim(), namespace: ns });
-                }
-
-            } else if (marker === '!' && markerEnd === '!') {
-                const body = inner.slice(1, inner.length - 1).trim();
-                const parts = parseInner(body);
-                directives.push({
-                    name:   parts[0],
-                    values: parts.slice(1),
-                });
-
+            if (inner[0] === '-' && inner[inner.length - 1] === '-') {
+                labels.push({ ip: instructions.length + 1, name: inner.slice(1, inner.length - 1) });
             } else {
                 comments.push({ ip: instructions.length, text: inner });
             }
@@ -96,5 +38,5 @@ export default function parse(tokens: string[]): Types.ParseResult {
 
     if (operatorstack.length > 0) throw new SyntaxError("Unclosed '('");
 
-    return { instructions, labels, comments, directives, exports, imports };
+    return { instructions, labels, comments };
 }

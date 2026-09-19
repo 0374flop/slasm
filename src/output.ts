@@ -11,10 +11,10 @@ export interface LogEntry {
 
 export class Logger extends EventEmitter {
     private static readonly COLORS: Record<LogLevel, string> = {
-        log:   '\x1b[37m',
-        clog:  '\x1b[36m',
-        info:  '\x1b[36m',
-        warn:  '\x1b[33m',
+        log: '\x1b[37m',
+        clog: '\x1b[36m',
+        info: '\x1b[36m',
+        warn: '\x1b[33m',
         error: '\x1b[31m',
         fatal: '\x1b[31;1m',
     };
