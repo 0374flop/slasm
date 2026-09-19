@@ -1,7 +1,0 @@
-{
-  "name": "super_test",
-  "main": "main.slasm",
-  "modules": {
-    "testlib": "slasm_modules/testlib.js"
-  }
-}
