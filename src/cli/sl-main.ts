@@ -1,77 +1,54 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
-import path from 'node:path';
+import readline from 'node:readline';
 import slasm from "../interpreter";
 import repl from "./repl";
-import run from "../tools/run";
 import prettyParse from "./prettyparse";
-import { findProjectRoot, readSlasmJson } from "../tools/fetch";
+import type { SlasmProcess } from "../interpreter/process";
 
-function readStdin(prompt: string): string {
-    process.stderr.write(prompt);
+function readStdinLine(): string {
     const buf = Buffer.alloc(1024);
     const n = fs.readSync(0, buf, 0, buf.length, null);
     return buf.slice(0, n).toString().replace(/\r?\n$/, '');
 }
 
-function readKey(a: string[]): string | undefined {
-    for (let i = 0; i < a.length; i++) {
-        if (a[i].startsWith('--key=')) return a[i].slice('--key='.length);
-        if (a[i] === '--key') {
-            const val = a[i + 1];
-            if (!val || val.startsWith('--')) return readStdin('Enter key: ');
-            return val;
-        }
-    }
-    return undefined;
+async function runFile(file: string): Promise<void> {
+    if (!fs.existsSync(file)) throw new Error(`no such file: ${file}`);
+    const proc: SlasmProcess = slasm.eval_slasm(fs.readFileSync(file, { encoding: 'utf-8' }));
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    proc.on('input', (reply) => rl.question('', (line) => reply(line)));
+    proc.once('done',  () => rl.close());
+    proc.once('error', () => rl.close());
+    proc.on('error', (err) => console.error('SLASM Error:', err.message));
+
+    await proc.result;
 }
 
 type Command = (args: string[]) => void | Promise<void>;
 
 const helpTexts: Record<string, string> = {
-    run: `slasm run [file] [--key[=]<key>]
-
-  Runs a .slasm, .slasmbin, .slasmz, .slasmjson, .slpkg, .slpkgz, or .slpkgj file.
-  If no file given and slasm.json exists in cwd, runs the main file from it.
-
-  --key=<key>   decryption key for encrypted binaries`,
-
-    eval: `slasm eval <code>
-
-  Evaluates a snippet of SLASM code directly from the command line.`,
-
-    repl: `slasm repl
-
-  Starts an interactive SLASM REPL.`,
-
-    parse: `slasm parse <file|code>
-
-  Parses a .slasm file or inline code and prints the instruction list with labels.`,
-
+    run:   `slasm run <file>\n\n  Runs a .slasm file.`,
+    eval:  `slasm eval <code>\n\n  Evaluates a snippet of SLASM code directly from the command line.`,
+    repl:  `slasm repl\n\n  Starts an interactive SLASM REPL.`,
+    parse: `slasm parse <file|code>\n\n  Parses a .slasm file or inline code and prints the instruction list with labels.`,
 };
 
 const commands: Record<string, Command> = {
     run: async (a) => {
-        const key = readKey(a);
-        const file = a.find(x => !x.startsWith('--'));
-        if (file) { await run(file, key); return; }
-        const root = findProjectRoot(process.cwd());
-        if (!root) throw new Error('no slasm.json found — run: sl-pm init');
-        const json = readSlasmJson(root);
-        if (!json.main) throw new Error('no "main" field in slasm.json');
-        await run(path.join(root, json.main), key);
+        if (!a[0]) throw new Error('usage: slasm run <file>');
+        await runFile(a[0]);
     },
     eval: async (a) => {
         const proc = slasm.eval_slasm(a.join(' '));
-        proc.on('input', (reply) => {
-            const buf = Buffer.alloc(1024);
-            const n = fs.readSync(0, buf, 0, buf.length, null);
-            reply(buf.slice(0, n).toString().replace(/\r?\n$/, ''));
-        });
+        proc.on('input', (reply) => reply(readStdinLine()));
         await proc.result;
     },
-    repl: () => replLoop(),
+    repl: async () => {
+        await repl();
+        process.exit(0);
+    },
     parse: (a) => {
         const src = fs.existsSync(a[0])
             ? fs.readFileSync(a[0], { encoding: 'utf-8' })
@@ -87,29 +64,24 @@ usage:
   slasm <command> [args]
 
 commands:
-  run          run a .slasm / .slasmbin / .slasmz / .slasmjson / .slpkg file
-  eval         evaluate inline SLASM code
-  repl         interactive REPL
-  parse        parse and print instruction list
-
-related tools:
-  sl-pkg       pack, unpack, convert, encrypt, decompile
-  sl-pm        install, uninstall, init modules`);
-    }
+  run <file>     run a .slasm file
+  eval <code>    evaluate inline SLASM code
+  repl           interactive REPL
+  parse <file|code>  parse and print instruction list
+  help`);
+    },
 };
 
-async function replLoop(): Promise<never> {
-    await repl();
-    process.exit(0);
-}
-
-const args = process.argv.slice(2);
+const args  = process.argv.slice(2);
 const first = args[0];
 
-if (!first) replLoop();
-
 (async () => {
-    if (first && commands[first]) {
+    if (!first) {
+        await repl();
+        process.exit(0);
+    }
+
+    if (commands[first]) {
         const a = args.slice(1);
         if (a.includes('-h') || a.includes('--help')) {
             console.log(helpTexts[first] ?? `no help available for '${first}'`);
@@ -124,15 +96,14 @@ if (!first) replLoop();
         process.exit(0);
     }
 
-    if (first && fs.existsSync(first)) {
+    if (fs.existsSync(first)) {
         try {
-            await run(first);
+            await runFile(first);
             process.exit(0);
         } catch (e) {
             console.error(e instanceof Error ? e.message : e);
             process.exit(1);
         }
-        return;
     }
 
     commands.help([]);

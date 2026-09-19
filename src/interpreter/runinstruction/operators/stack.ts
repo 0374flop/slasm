@@ -2,39 +2,33 @@ import type { Runtime } from '../../vm.js';
 
 type Handler = (rt: Runtime) => void | Promise<void>;
 
-const vm = (rt: Runtime) => rt.modules.get(rt.current)!;
-
 export const stack: Map<string, Handler> = new Map([
     ['clearstack', (rt) => {
-        vm(rt).stack = [];
-        vm(rt).ip++;
+        rt.stack = [];
+        rt.ip++;
     }],
     ['_', (rt) => {
-        const v = vm(rt);
-        v.stack.push('');
-        v.ip++;
+        rt.stack.push('');
+        rt.ip++;
     }],
     ['swap', (rt) => {
-        const v = vm(rt);
-        if (v.stack.length < 2) throw new Error('swap: stack underflow');
-        const a = v.stack.pop()!;
-        const b = v.stack.pop()!;
-        v.stack.push(a, b);
-        v.ip++;
+        if (rt.stack.length < 2) throw new Error('swap: stack underflow');
+        const a = rt.stack.pop()!;
+        const b = rt.stack.pop()!;
+        rt.stack.push(a, b);
+        rt.ip++;
     }],
     ['getstack', (rt) => {
-        const v = vm(rt);
-        const n = Number(v.stack.pop());
-        if (n < 0 || n >= v.stack.length) throw new Error(`getstack: index ${n} out of range`);
-        v.stack.push(v.stack[n]);
-        v.ip++;
+        const n = Number(rt.stack.pop());
+        if (n < 0 || n >= rt.stack.length) throw new Error(`getstack: index ${n} out of range`);
+        rt.stack.push(rt.stack[n]);
+        rt.ip++;
     }],
     ['cstack', (rt) => {
-        const v = vm(rt);
-        const n    = Number(v.stack.pop());
-        const data = v.stack.pop() ?? '';
-        if (n < 0 || n >= v.stack.length) throw new Error(`cstack: index ${n} out of range`);
-        v.stack[n] = data;
-        v.ip++;
+        const n    = Number(rt.stack.pop());
+        const data = rt.stack.pop() ?? '';
+        if (n < 0 || n >= rt.stack.length) throw new Error(`cstack: index ${n} out of range`);
+        rt.stack[n] = data;
+        rt.ip++;
     }],
 ]);
