@@ -1,11 +1,11 @@
 import type { Runtime } from '../vm.js';
 import { arithmetic } from './operators/arithmetic.js';
-import { memory }     from './operators/memory.js';
-import { stack }      from './operators/stack.js';
-import { strings }    from './operators/strings.js';
-import { io }         from './operators/io.js';
-import { control }    from './operators/control.js';
-import { misc }       from './operators/misc.js';
+import { memory } from './operators/memory.js';
+import { stack } from './operators/stack.js';
+import { strings } from './operators/strings.js';
+import { io } from './operators/io.js';
+import { control } from './operators/control.js';
+import { misc } from './operators/misc.js';
 
 type Handler = (rt: Runtime) => void | Promise<void>;
 

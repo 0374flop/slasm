@@ -2,40 +2,40 @@ import type { label } from './types.js';
 import type { SlasmProcess } from './process.js';
 
 export type CallFrame = {
-    ip:        number;
-    returns:   number;
+    ip: number;
+    returns: number;
     stackBase: number;
 };
 
 export type Runtime = {
     instructions: string[];
-    labels:       label[];
-    stack:        string[];
-    memory:       Map<string, string>;
-    ip:           number;
-    callstack:    CallFrame[];
-    clog:         string[];
-    emitter:      SlasmProcess;
-    inputQueue:   string[] | null;
-    killed:       boolean;
+    labels: label[];
+    stack: string[];
+    memory: Map<string, string>;
+    ip: number;
+    callstack: CallFrame[];
+    clog: string[];
+    emitter: SlasmProcess;
+    inputQueue: string[] | null;
+    killed: boolean;
 };
 
 export function createRuntime(
     instructions: string[],
-    labels:       label[],
-    emitter:      SlasmProcess,
-    inputQueue:   string[] | null = null,
+    labels: label[],
+    emitter: SlasmProcess,
+    inputQueue: string[] | null = null,
 ): Runtime {
     return {
         instructions,
         labels,
-        stack:     [],
-        memory:    new Map<string, string>(),
-        ip:        0,
+        stack: [],
+        memory: new Map<string, string>(),
+        ip: 0,
         callstack: [],
-        clog:      [],
+        clog: [],
         emitter,
         inputQueue,
-        killed:    false,
+        killed: false,
     };
 }

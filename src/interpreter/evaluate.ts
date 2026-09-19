@@ -5,13 +5,13 @@ import { SlasmProcess } from './process.js';
 
 export default function evaluate(
     instructions: string[],
-    labels:       label[]         = [],
-    clog:         string[]        = [],
-    inputQueue:   string[] | null = null,
+    labels: label[] = [],
+    clog: string[] = [],
+    inputQueue: string[] | null = null,
 ): SlasmProcess {
-    const proc    = new SlasmProcess();
+    const proc = new SlasmProcess();
     const runtime = createRuntime(instructions, labels, proc, inputQueue);
-    runtime.clog  = clog;
+    runtime.clog = clog;
 
     const run = async () => {
         while (runtime.ip < runtime.instructions.length) {
@@ -29,7 +29,7 @@ export default function evaluate(
     });
 
     proc.result = promise;
-    proc.kill   = () => { runtime.killed = true; };
+    proc.kill = () => { runtime.killed = true; };
 
     return proc;
 }

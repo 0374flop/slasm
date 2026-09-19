@@ -9,7 +9,7 @@ export default async function repl(): Promise<void> {
     while (true) {
         const code = await ask();
         if (!code || code.toLowerCase() === 'exit') {
-            console.log('--exit--');
+            console.log('exited');
             rl.close();
             process.exit();
         }

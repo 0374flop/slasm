@@ -20,5 +20,4 @@ export const misc: Map<string, Handler> = new Map([
     }],
     ['begin', (rt) => { rt.ip++; }],
     ['none',  (rt) => { rt.ip++; }],
-    ['done',  (rt) => { rt.killed = true; }],
 ]);

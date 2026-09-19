@@ -29,9 +29,9 @@ async function runFile(file: string): Promise<void> {
 type Command = (args: string[]) => void | Promise<void>;
 
 const helpTexts: Record<string, string> = {
-    run:   `slasm run <file>\n\n  Runs a .slasm file.`,
-    eval:  `slasm eval <code>\n\n  Evaluates a snippet of SLASM code directly from the command line.`,
-    repl:  `slasm repl\n\n  Starts an interactive SLASM REPL.`,
+    run: `slasm run <file>\n\n  Runs a .slasm file.`,
+    eval: `slasm eval <code>\n\n  Evaluates a snippet of SLASM code directly from the command line.`,
+    repl: `slasm repl\n\n  Starts an interactive SLASM REPL.`,
     parse: `slasm parse <file|code>\n\n  Parses a .slasm file or inline code and prints the instruction list with labels.`,
 };
 

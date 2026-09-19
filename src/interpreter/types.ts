@@ -1,15 +1,15 @@
 export type label = {
-    ip:   number;
+    ip: number;
     name: string;
 }
 
 export type comment = {
-    ip:   number;
+    ip: number;
     text: string;
 }
 
 export type ParseResult = {
     instructions: string[];
-    labels:       label[];
-    comments:     comment[];
+    labels: label[];
+    comments: comment[];
 }

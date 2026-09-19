@@ -21,7 +21,7 @@ export default function prettyParse(instructions: string[], labels: label[], com
         }
 
         if (labelAtIp.has(ip)) {
-            lines.push(`${'─'.repeat(width + 2)}  ;-${labelAtIp.get(ip)}-;`);
+            lines.push(`${'-'.repeat(width + 2)}  ;-${labelAtIp.get(ip)}-;`);
         }
 
         if (op === 'push' && i + 1 < instructions.length) {
@@ -31,15 +31,16 @@ export default function prettyParse(instructions: string[], labels: label[], com
             if (next === 'jump') {
                 const target = Number(val);
                 const lbl = labelAtIp.get(target);
-                annotation = lbl ? `  ──► ${target} (${lbl})` : `  ──► ${target}`;
+                annotation = lbl ? `  > ${target} (${lbl})` : `  > ${target}`;
             } else if (next === '?') {
                 const target = Number(val);
                 const lbl = labelAtIp.get(target);
-                annotation = lbl ? `  ──► ${target} (${lbl}) if true` : `  ──► ${target} if true`;
+                annotation = lbl ? `  > ${target} (${lbl}) if true` : `  > ${target} if true`;
             } else if (next === 'gln') {
                 annotation = `  (label name)`;
             }
-            lines.push(`${pad(ip)}  push  ${val}${annotation}`);
+            lines.push(`${pad(ip)}  push`);
+            lines.push(`${pad(ip + 1)}  ${val}${annotation}`);
             i += 2;
             continue;
         }
