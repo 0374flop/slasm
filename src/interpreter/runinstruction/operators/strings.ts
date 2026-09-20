@@ -16,6 +16,7 @@ export const strings: Map<string, Handler> = new Map([
     ['rep', (rt) => {
         const text = rt.stack.pop() ?? '';
         const n = Number(rt.stack.pop());
+        if (Number.isNaN(n) || n < 0 || !Number.isFinite(n)) throw new Error('rep: invalid count');
         rt.stack.push(text.repeat(n));
         rt.ip++;
     }],
@@ -30,7 +31,7 @@ export const strings: Map<string, Handler> = new Map([
         const id = Number(rt.stack.pop());
         const SRC = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         const src = ' abcdefghijklmnopqrstuvwxyz';
-        rt.stack.push(upper === 1 ? SRC[id] : src[id]);
+        rt.stack.push((upper === 1 ? SRC[id] : src[id]) ?? '');
         rt.ip++;
     }],
     ['S', (rt) => {

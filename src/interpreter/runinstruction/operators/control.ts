@@ -13,14 +13,14 @@ export const control: Map<string, Handler> = new Map([
     }],
     ['jump', (rt) => {
         const target = Number(rt.stack.pop());
-        if (target < 1 || target > rt.instructions.length+1) throw new Error(`jump: target ${target} out of range`);
+        if (Number.isNaN(target) || target < 1 || target > rt.instructions.length + 1) throw new Error(`jump: target ${target} out of range`);
         rt.ip = target - 1;
     }],
     ['?', (rt) => {
         const target = Number(rt.stack.pop());
         const cond   = rt.stack.pop();
         if (cond === 'true') {
-            if (target < 1 || target > rt.instructions.length+1) throw new Error(`?: target ${target} out of range`);
+            if (Number.isNaN(target) || target < 1 || target > rt.instructions.length + 1) throw new Error(`?: target ${target} out of range`);
             rt.ip = target - 1;
         } else {
             rt.ip++;

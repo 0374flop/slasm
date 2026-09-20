@@ -13,6 +13,10 @@ export default function evaluate(
     const runtime = createRuntime(instructions, labels, proc, inputQueue);
     runtime.clog = clog;
 
+    proc.kill = () => {
+        runtime.ip = runtime.instructions.length;
+    };
+
     const run = async () => {
         while (runtime.ip < runtime.instructions.length) {
             await runInstruction(runtime);
@@ -21,13 +25,11 @@ export default function evaluate(
         return runtime.clog;
     };
 
-    const promise = run();
-    promise.catch(err => {
+    proc.result = run().catch(err => {
         const e = err instanceof Error ? err : new Error(String(err));
         proc.emit('error', e);
+        return runtime.clog;
     });
-
-    proc.result = promise;
 
     return proc;
 }

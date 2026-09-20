@@ -20,14 +20,14 @@ export const stack: Map<string, Handler> = new Map([
     }],
     ['getstack', (rt) => {
         const n = Number(rt.stack.pop());
-        if (n < 0 || n >= rt.stack.length) throw new Error(`getstack: index ${n} out of range`);
+        if (Number.isNaN(n) || n < 0 || n >= rt.stack.length) throw new Error(`getstack: index ${n} out of range`);
         rt.stack.push(rt.stack[n]);
         rt.ip++;
     }],
     ['cstack', (rt) => {
         const n    = Number(rt.stack.pop());
         const data = rt.stack.pop() ?? '';
-        if (n < 0 || n >= rt.stack.length) throw new Error(`cstack: index ${n} out of range`);
+        if (Number.isNaN(n) || n < 0 || n >= rt.stack.length) throw new Error(`cstack: index ${n} out of range`);
         rt.stack[n] = data;
         rt.ip++;
     }],

@@ -6,7 +6,7 @@ import logger from '../output.js';
 import type { label, comment } from './types.js';
 
 export type { ParseResult, label, comment } from './types.js';
-export type { Runtime, CallFrame } from './vm.js';
+export type { Runtime } from './vm.js';
 export { SlasmProcess } from './process.js';
 
 function eval_slasm(program: string, inputQueue: string[] | null = null) {

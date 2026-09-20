@@ -12,6 +12,7 @@ export default function parse(tokens: string[]): Types.ParseResult {
         const token = tokens[pos++];
 
         if (token === '(') {
+            if (pos >= tokens.length) throw new SyntaxError("Unclosed '('");
             operatorstack.push(tokens[pos++]);
             continue;
         }
@@ -27,7 +28,7 @@ export default function parse(tokens: string[]): Types.ParseResult {
             if (inner[0] === '-' && inner[inner.length - 1] === '-') {
                 labels.push({ ip: instructions.length + 1, name: inner.slice(1, inner.length - 1) });
             } else {
-                comments.push({ ip: instructions.length, text: inner });
+                comments.push({ ip: instructions.length + 1, text: inner });
             }
 
             continue;
