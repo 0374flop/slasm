@@ -45,6 +45,12 @@ async function benchmark(file: string): Promise<void> {
     const optimizedParsed = slasm.parse(slasm.tokenize(optimized.source));
 
     console.log(name);
+    if (source.split(/\r?\n/).length <= 100) {
+        console.log('  source:');
+        console.log(source);
+        console.log('  optimized:');
+        console.log(optimized.source);
+    }
     console.log(`  output: ${JSON.stringify(execution.output)}`);
     console.log(`  parse: ${parseTime}`);
     console.log(`  execute: ${execution.time}`);

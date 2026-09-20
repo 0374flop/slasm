@@ -8,7 +8,7 @@
     "build": "npm run build:src && npm run build:script",
     "build:src": "tsc",
     "build:script": "cd scripts && tsc",
-    "test": "node scripts/lib/index.js"
+    "test": "npm run build && node scripts/lib/index.js"
   },
   "bin": {
     "slasm": "lib/cli/sl-main.js"
