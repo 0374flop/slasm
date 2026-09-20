@@ -2,7 +2,6 @@ import parse from './parse.js';
 import tokenize from './tokenize.js';
 import evaluate from './evaluate.js';
 import decompile from './decompile.js';
-import logger from '../output.js';
 import type { label, comment } from './types.js';
 
 export type { ParseResult, label, comment } from './types.js';
@@ -26,7 +25,6 @@ function format(program: string): string {
 
 const slasm = {
     parse,
-    logger,
     tokenize,
     evaluate,
     decompile,

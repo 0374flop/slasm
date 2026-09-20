@@ -1,4 +1,3 @@
-import logger from '../../../output.js';
 import type { Runtime } from '../../vm.js';
 
 type Handler = (rt: Runtime) => void | Promise<void>;
@@ -7,7 +6,6 @@ export const io: Map<string, Handler> = new Map([
     ['clog', (rt) => {
         const val = rt.stack.pop() ?? '';
         rt.clog.push(val);
-        logger.clog(val);
         rt.emitter.emit('output', val);
         rt.ip++;
     }],

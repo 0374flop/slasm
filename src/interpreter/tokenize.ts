@@ -1,9 +1,6 @@
-import logger from "../output.js";
-
 const WHITESPACE = ' \n\t\r';
 
 export default function tokenize(program: string): string[] {
-    logger.log('begin tokenize: ', program);
     let accumulator: string = '';
     let tokens: Array<string> = [];
     let i = 0;
@@ -56,6 +53,5 @@ export default function tokenize(program: string): string[] {
 
     flush();
 
-    logger.log('end tokenize: ', program, ',', tokens);
     return tokens;
 }

@@ -19,17 +19,11 @@ function elapsed(start: number): string {
 }
 
 async function execute(source: string): Promise<{ output: string[]; time: string }> {
-    const originalClog = slasm.logger.clog;
-    slasm.logger.clog = () => {};
     const start = performance.now();
-    try {
-        const process = slasm.eval_slasm(source, []);
-        process.on('error', () => {});
-        const output = await process.result;
-        return { output, time: elapsed(start) };
-    } finally {
-        slasm.logger.clog = originalClog;
-    }
+    const process = slasm.eval_slasm(source, []);
+    process.on('error', () => {});
+    const output = await process.result;
+    return { output, time: elapsed(start) };
 }
 
 async function benchmark(file: string): Promise<void> {

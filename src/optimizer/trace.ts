@@ -3,7 +3,6 @@ import tokenize from '../interpreter/tokenize.js';
 import { createRuntime } from '../interpreter/vm.js';
 import { SlasmProcess } from '../interpreter/process.js';
 import runInstruction from '../interpreter/runinstruction/index.js';
-import logger from '../output.js';
 import type { label } from '../interpreter/types.js';
 
 export type WriteEvent = {
@@ -38,29 +37,22 @@ export async function traceProgram(
     const seen = new Set<number>();
     let steps = 0;
 
-    const originalClog = logger.clog;
-    logger.clog = () => {};
+    while (rt.ip < rt.instructions.length && steps < maxSteps) {
+        steps++;
+        const op = rt.instructions[rt.ip];
 
-    try {
-        while (rt.ip < rt.instructions.length && steps < maxSteps) {
-            steps++;
-            const op = rt.instructions[rt.ip];
-
-            if (op === 'W' && rt.stack.length >= 2) {
-                const val = rt.stack[rt.stack.length - 1];
-                const key = Number(rt.stack[rt.stack.length - 2]);
-                writes.push({ ip: rt.ip + 1, key, val, hadWriteBefore: seen.has(key) });
-                seen.add(key);
-            }
-
-            if (op === 'clearstack') {
-                clears.push({ ip: rt.ip + 1, depth: rt.stack.length });
-            }
-
-            await runInstruction(rt);
+        if (op === 'W' && rt.stack.length >= 2) {
+            const val = rt.stack[rt.stack.length - 1];
+            const key = Number(rt.stack[rt.stack.length - 2]);
+            writes.push({ ip: rt.ip + 1, key, val, hadWriteBefore: seen.has(key) });
+            seen.add(key);
         }
-    } finally {
-        logger.clog = originalClog;
+
+        if (op === 'clearstack') {
+            clears.push({ ip: rt.ip + 1, depth: rt.stack.length });
+        }
+
+        await runInstruction(rt);
     }
 
     return { writes, clears, truncated: steps >= maxSteps, clog: rt.clog };

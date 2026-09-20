@@ -25,7 +25,7 @@ export default function evaluate(
         return runtime.clog;
     };
 
-    proc.result = run().catch(err => {
+    proc.result = Promise.resolve().then(run).catch(err => {
         const e = err instanceof Error ? err : new Error(String(err));
         proc.emit('error', e);
         return runtime.clog;

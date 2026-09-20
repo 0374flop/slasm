@@ -16,6 +16,7 @@ export default async function repl(): Promise<void> {
 
         const proc = slasm.eval_slasm(code);
 
+        proc.on('output', (value) => process.stdout.write(`${value}\n`));
         proc.on('input', (reply) => {
             rl.question('', (line) => reply(line));
         });

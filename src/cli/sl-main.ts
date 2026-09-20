@@ -22,6 +22,7 @@ async function runFile(file: string): Promise<void> {
     const proc: SlasmProcess = slasm.eval_slasm(fs.readFileSync(file, { encoding: 'utf-8' }));
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    proc.on('output', (value) => process.stdout.write(`${value}\n`));
     proc.on('input', (reply) => rl.question('', (line) => reply(line)));
     proc.once('done',  () => rl.close());
     proc.once('error', () => rl.close());
@@ -80,6 +81,7 @@ program
             ? code.join(' ')
             : process.stdin.isTTY ? '' : await readStdin();
         const proc = slasm.eval_slasm(src);
+        proc.on('output', (value) => process.stdout.write(`${value}\n`));
         proc.on('input', (reply) => reply(readStdinLine()));
         await proc.result;
     });
