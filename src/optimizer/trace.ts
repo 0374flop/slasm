@@ -4,6 +4,7 @@ import { createRuntime } from '../interpreter/vm.js';
 import { SlasmProcess } from '../interpreter/process.js';
 import runInstruction from '../interpreter/runinstruction/index.js';
 import logger from '../output.js';
+import type { label } from '../interpreter/types.js';
 
 export type WriteEvent = {
     ip: number;
@@ -24,13 +25,13 @@ export type TraceResult = {
     clog: string[];
 };
 
-export async function trace(
-    src: string,
+export async function traceProgram(
+    instructions: string[],
+    labels: label[],
     inputQueue: string[] | null = null,
     maxSteps: number = 1_000_000,
 ): Promise<TraceResult> {
-    const parsed = parse(tokenize(src));
-    const rt = createRuntime(parsed.instructions, parsed.labels, new SlasmProcess(), inputQueue);
+    const rt = createRuntime(instructions.slice(), labels.map(l => ({ ...l })), new SlasmProcess(), inputQueue);
 
     const writes: WriteEvent[] = [];
     const clears: ClearEvent[] = [];
@@ -63,4 +64,13 @@ export async function trace(
     }
 
     return { writes, clears, truncated: steps >= maxSteps, clog: rt.clog };
+}
+
+export async function trace(
+    src: string,
+    inputQueue: string[] | null = null,
+    maxSteps: number = 1_000_000,
+): Promise<TraceResult> {
+    const parsed = parse(tokenize(src));
+    return traceProgram(parsed.instructions, parsed.labels, inputQueue, maxSteps);
 }
