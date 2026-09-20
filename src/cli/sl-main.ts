@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import readline from 'node:readline';
 import { Command, CommanderError } from 'commander';
 import slasm from "../interpreter";
+import { optimize } from '../optimizer/optimize';
 import repl from "./repl";
 import prettyParse from "./prettyparse";
 import type { SlasmProcess } from "../interpreter/process";
@@ -75,7 +76,10 @@ program
     .command('eval [code...]')
     .description('evaluate inline slasm code')
     .action(async (code: string[]) => {
-        const proc = slasm.eval_slasm(code.join(' '));
+        const src = code.length > 0
+            ? code.join(' ')
+            : process.stdin.isTTY ? '' : await readStdin();
+        const proc = slasm.eval_slasm(src);
         proc.on('input', (reply) => reply(readStdinLine()));
         await proc.result;
     });
@@ -126,6 +130,19 @@ program
     .action(async (input: string[]) => {
         const src = await readInput(input, 'usage: slasm format <file|code>  (or pipe code via stdin)');
         console.log(slasm.format(src));
+    });
+
+program
+    .command('optimize [input...]')
+    .description('optimize slasm code')
+    .option('--log', 'print the optimization log to stderr')
+    .action(async (input: string[], options: { log?: boolean }) => {
+        const src = await readInput(input, 'usage: slasm optimize <file|code>  (or pipe code via stdin)');
+        const result = await optimize(src);
+        console.log(result.source);
+        if (options.log) {
+            for (const entry of result.log) console.error(entry);
+        }
     });
 
 void program.parseAsync(process.argv).catch((error: unknown) => {
