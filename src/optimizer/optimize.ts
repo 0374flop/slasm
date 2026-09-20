@@ -1,5 +1,6 @@
 import parse from '../interpreter/parse.js';
 import tokenize from '../interpreter/tokenize.js';
+import decompile from '../interpreter/decompile.js';
 import { trace } from './trace.js';
 
 const GLN = /\(gln ([^\s()]+)\)/g;
@@ -9,8 +10,19 @@ function compile(src: string) {
     return parse(tokenize(src));
 }
 
-function ipOfLine(lines: string[], index: number): number {
-    return compile(lines.slice(0, index + 1).join('\n')).instructions.length;
+function normalize(src: string): string {
+    const parsed = compile(src);
+    return decompile(parsed.instructions, parsed.labels, []);
+}
+
+function lineEnds(lines: string[]): number[] {
+    const ends: number[] = [];
+    let total = 0;
+    for (const line of lines) {
+        total += compile(line).instructions.length;
+        ends.push(total);
+    }
+    return ends;
 }
 
 function escapeRegExp(s: string): string {
@@ -26,7 +38,7 @@ export async function optimize(
     src: string,
     inputQueue: string[] | null = null,
 ): Promise<OptimizeResult> {
-    let lines = src.split('\n');
+    let lines = normalize(src).split('\n');
     const log: string[] = [];
     const labels = () => compile(lines.join('\n')).labels;
 
@@ -46,11 +58,12 @@ export async function optimize(
             for (const [ip, a] of byIp) {
                 if (a.firstOnly && a.all.every(v => v === '0')) zeroIps.add(ip);
             }
+            const ends = lineEnds(lines);
             const out: string[] = [];
             for (let i = 0; i < lines.length; i++) {
                 const m = lines[i].match(/^\(W (\d+) 0\)$/);
                 if (m) {
-                    const ip = ipOfLine(lines, i);
+                    const ip = ends[i];
                     if (zeroIps.has(ip)) {
                         log.push(`R0 removed ${lines[i]} (ip ${ip})`);
                         continue;
@@ -74,15 +87,16 @@ export async function optimize(
                 if (c.depth !== 0) a.ok = false;
                 byIp.set(c.ip, a);
             }
+            const ends = lineEnds(lines);
             const out: string[] = [];
             for (let i = 0; i < lines.length; i++) {
                 if (lines[i] === '(clearstack)') {
-                    const ip = ipOfLine(lines, i);
+                    const ip = ends[i];
                     const a = byIp.get(ip);
                     if (!a) {
                         log.push(`R1 kept (clearstack) at ip ${ip}: never executed in the trace`);
                     } else if (a.ok) {
-                        log.push(`R1 removed (clearstack) at ip ${ip} (stack was empty all ${a.n} times)`);
+                        log.push(`R1 removed (clearstack) at ip ${ip} (stack was empty all ${a.n} time${a.n === 1 ? '' : 's'})`);
                         continue;
                     } else {
                         log.push(`R1 kept (clearstack) at ip ${ip}: stack was not empty`);
