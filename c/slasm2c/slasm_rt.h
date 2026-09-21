@@ -196,7 +196,7 @@ static long pop_target(VM *vm) {
     return (long)to_num(pop(vm));
 }
 
-static void op_push(VM *vm, const char *lit) {
+static __attribute__((unused)) void op_push(VM *vm, const char *lit) {
     push(vm, str(lit));
 }
 
@@ -308,10 +308,13 @@ static void op_throw(VM *vm) {
     die(to_str(msg));
 }
 
+#ifndef LABEL_STRUCT_DEFINED
+#define LABEL_STRUCT_DEFINED
 typedef struct {
     const char *name;
     long ip;
 } Label;
+#endif
 
 static void op_gln(VM *vm, const Label *labels, int count) {
     const char *name = to_str(pop(vm));
