@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import path from 'node:path';
 import readline from 'node:readline';
 import { Command, CommanderError } from 'commander';
 import slasm from "../interpreter";
@@ -47,15 +48,56 @@ async function readInput(a: string[], usage: string): Promise<string> {
     return readStdin();
 }
 
+function getFilesFromDir(dir: string, all: boolean): string[] {
+    let results: string[] = [];
+    if (!fs.existsSync(dir)) return results;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            results = results.concat(getFilesFromDir(fullPath, all));
+        } else if (entry.isFile()) {
+            if (all || entry.name.endsWith('.slasm')) {
+                results.push(fullPath);
+            }
+        }
+    }
+    return results.sort();
+}
+
 const program = new Command()
     .name('slasm')
     .description(`slasm interpreter and tools. (npm package ${packageJson.name}, v${packageJson.version})`)
     .version(packageJson.version)
+    .option('-d, --dir <dir>', 'run all files in directory')
+    .option('-a, --all', 'run all files in directory regardless of extension')
+    .option('-l, --list <files...>', 'run list of files')
+    .argument('[file]', 'run a .slasm file')
     .exitOverride();
 
 program
-    .argument('[file]', 'run a .slasm file')
-    .action(async (file?: string) => {
+    .action(async (file?: string, options?: { dir?: string; all?: boolean; list?: string[] }) => {
+        const opts = options || {};
+        if (opts.dir) {
+            const files = getFilesFromDir(opts.dir, !!opts.all);
+            if (files.length === 0) {
+                console.error(`no files found in directory: ${opts.dir}`);
+                process.exitCode = 1;
+                return;
+            }
+            for (const f of files) {
+                await runFile(f);
+            }
+            return;
+        }
+
+        if (opts.list && opts.list.length > 0) {
+            for (const f of opts.list) {
+                await runFile(f);
+            }
+            return;
+        }
+
         if (!file) {
             await repl();
             return;
