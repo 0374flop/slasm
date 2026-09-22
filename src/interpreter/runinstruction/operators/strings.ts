@@ -21,8 +21,8 @@ export const strings: Map<string, Handler> = new Map([
         rt.ip++;
     }],
     ['char', (rt) => {
-        const n = Number(rt.stack.pop());
         const str = rt.stack.pop() ?? '';
+        const n = Number(rt.stack.pop());
         rt.stack.push(str[n] ?? '');
         rt.ip++;
     }],
