@@ -18,24 +18,29 @@ export default function tokenize(program: string): string[] {
 
         if (char === ';') {
             flush();
-            const startLine = line;
             let block = ';';
-            i++;
-            while (i < program.length && program[i] !== ';') {
-                const c = program[i];
-                if (WHITESPACE.includes(c)) {
-                    throw new SyntaxError(`line ${startLine}: whitespace inside ';...;' block`);
+            let j = i + 1;
+            let isValid = false;
+
+            while (j < program.length) {
+                const c = program[j];
+                if (c === '(' || c === ')' || WHITESPACE.includes(c)) {
+                    break;
+                }
+                if (c === ';') {
+                    block += ';';
+                    isValid = true;
+                    break;
                 }
                 block += c;
-                i++;
+                j++;
             }
-            if (i >= program.length) {
-                throw new SyntaxError(`line ${startLine}: unclosed ';' block`);
+
+            if (isValid) {
+                tokens.push(block);
+                i = j + 1;
+                continue;
             }
-            block += ';';
-            tokens.push(block);
-            i++;
-            continue;
         }
 
         if (WHITESPACE.includes(char)) {
