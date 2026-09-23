@@ -1,4 +1,5 @@
 import * as Types from './types'
+import { SlasmError } from './errors.js';
 
 export default function parse(tokens: string[]): Types.ParseResult {
     const instructions: string[] = [];
@@ -12,10 +13,10 @@ export default function parse(tokens: string[]): Types.ParseResult {
         const token = tokens[pos++];
 
         if (token === '(') {
-            if (pos >= tokens.length) throw new SyntaxError("Unclosed '('");
+            if (pos >= tokens.length) throw new SlasmError('parse', "Unclosed '('", instructions.length + 1);
             const opToken = tokens[pos++];
             if (opToken === ')' || opToken === '(') {
-                throw new SyntaxError("Missing operator token after '('");
+                throw new SlasmError('parse', "Missing operator token after '('", instructions.length + 1);
             }
             operatorstack.push(opToken);
             continue;
@@ -23,7 +24,7 @@ export default function parse(tokens: string[]): Types.ParseResult {
 
         if (token === ')') {
             if (operatorstack.length === 0) {
-                throw new SyntaxError("Unexpected ')'");
+                throw new SlasmError('parse', "Unexpected ')'", instructions.length + 1);
             }
             instructions.push(operatorstack.pop()!);
             continue;
@@ -35,7 +36,7 @@ export default function parse(tokens: string[]): Types.ParseResult {
             if (inner.length >= 2 && inner[0] === '-' && inner[inner.length - 1] === '-') {
                 const labelName = inner.slice(1, inner.length - 1);
                 if (labelName === '') {
-                    throw new SyntaxError("Empty label name in ';- -;' block");
+                    throw new SlasmError('parse', "Empty label name in ';- -;' block", instructions.length + 1);
                 }
                 labels.push({ ip: instructions.length + 1, name: labelName });
             } else {
@@ -48,7 +49,7 @@ export default function parse(tokens: string[]): Types.ParseResult {
         instructions.push('push', token);
     }
 
-    if (operatorstack.length > 0) throw new SyntaxError("Unclosed '('");
+    if (operatorstack.length > 0) throw new SlasmError('parse', "Unclosed '('", instructions.length + 1);
 
     return { instructions, labels, comments };
 }

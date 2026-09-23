@@ -5,6 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { Command, CommanderError } from 'commander';
 import slasm from "../interpreter";
+import { SlasmError } from '../interpreter/errors';
 import { optimize } from '../optimizer/optimize';
 import repl from "./repl";
 import prettyParse from "./prettyparse";
@@ -27,7 +28,7 @@ async function runFile(file: string): Promise<void> {
     proc.on('input', (reply) => rl.question('> ', (line) => reply(line)));
     proc.once('done',  () => rl.close());
     proc.once('error', () => rl.close());
-    proc.on('error', (err) => console.error('slasm Error:', err.message));
+    proc.on('error', (err) => console.error(err instanceof SlasmError ? err.format() : `slasm Error: ${err.message}`));
 
     await proc.result;
 }
@@ -195,6 +196,6 @@ void program.parseAsync(process.argv).catch((error: unknown) => {
         process.exitCode = error.exitCode;
         return;
     }
-    console.error(error instanceof Error ? error.message : error);
+    console.error(error instanceof SlasmError ? error.format() : error instanceof Error ? error.message : error);
     process.exitCode = 1;
 });

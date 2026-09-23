@@ -1,4 +1,5 @@
 import type { Runtime } from '../vm.js';
+import { SlasmError } from '../errors.js';
 import { arithmetic } from './operators/arithmetic.js';
 import { memory } from './operators/memory.js';
 import { stack } from './operators/stack.js';
@@ -28,13 +29,20 @@ const handlers: Map<string, Handler> = new Map([
 const MAX_STACK_SIZE = 20000;
 
 export default async function runInstruction(runtime: Runtime): Promise<void> {
+    const ip = runtime.ip + 1;
     const op = runtime.instructions[runtime.ip];
 
-    const handler = handlers.get(op);
-    if (!handler) throw new Error(`Undefined operator '${op}'`);
-    await handler(runtime);
+    try {
+        const handler = handlers.get(op);
+        if (!handler) throw new Error(`Undefined operator '${op}'`);
+        await handler(runtime);
 
-    if (runtime.stack.length > MAX_STACK_SIZE) {
-        throw new Error(`Stack overflow: exceeded limit of ${MAX_STACK_SIZE}`);
+        if (runtime.stack.length > MAX_STACK_SIZE) {
+            throw new Error(`Stack overflow: exceeded limit of ${MAX_STACK_SIZE}`);
+        }
+    } catch (err) {
+        if (err instanceof SlasmError) throw err;
+        const message = err instanceof Error ? err.message : String(err);
+        throw new SlasmError('runtime', message, ip, op);
     }
 }

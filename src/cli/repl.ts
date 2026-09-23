@@ -1,5 +1,9 @@
 import readline from 'node:readline';
 import slasm, { comment, label } from '../interpreter/index.js';
+import { SlasmError } from '../interpreter/errors.js';
+
+const formatError = (error: unknown): string =>
+    error instanceof SlasmError ? error.format() : error instanceof Error ? error.message : String(error);
 
 export default async function repl(): Promise<void> {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -18,12 +22,13 @@ export default async function repl(): Promise<void> {
         try {
             compiled = slasm.compile(code);
         } catch (error) {
-            console.log(error instanceof Error ? error.message : error);
+            console.log(formatError(error));
             continue;
         }
         const proc = slasm.evaluate(compiled[0], compiled[1]);
 
         proc.on('output', (value) => process.stdout.write(`${value}\n`));
+        proc.on('error', (err) => console.log(formatError(err)));
         proc.on('input', (reply) => {
             rl.question('', (line) => reply(line));
         });
@@ -34,7 +39,7 @@ export default async function repl(): Promise<void> {
                 console.log(proc.stack[0]);
             }
         } catch (error) {
-            console.log(error instanceof Error ? error.message : error);
+            console.log(formatError(error));
         }
     }
 }
