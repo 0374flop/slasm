@@ -22,6 +22,7 @@ async function execute(source: string): Promise<{ output: string[]; time: string
     const start = performance.now();
     const process = slasm.eval_slasm(source, []);
     process.on('error', () => {});
+    void process.start();
     const output = await process.result;
     return { output, time: elapsed(start) };
 }

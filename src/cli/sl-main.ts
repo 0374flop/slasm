@@ -8,6 +8,7 @@ import slasm from "../interpreter";
 import { SlasmError } from '../interpreter/errors';
 import { optimize } from '../optimizer/optimize';
 import repl from "./repl";
+import debug from "./debug";
 import prettyParse from "./prettyparse";
 import type { SlasmProcess } from "../interpreter/process";
 
@@ -30,6 +31,7 @@ async function runFile(file: string): Promise<void> {
     proc.once('error', () => rl.close());
     proc.on('error', (err) => console.error(err instanceof SlasmError ? err.format() : `slasm Error: ${err.message}`));
 
+    void proc.start();
     await proc.result;
 }
 
@@ -73,12 +75,22 @@ const program = new Command()
     .option('-d, --dir <dir>', 'run all files in directory')
     .option('-a, --all', 'run all files in directory regardless of extension')
     .option('-l, --list <files...>', 'run list of files')
+    .option('-D, --debug', 'run the file in the interactive debugger')
     .argument('[file]', 'run a .slasm file')
     .exitOverride();
 
 program
-    .action(async (file?: string, options?: { dir?: string; all?: boolean; list?: string[] }) => {
+    .action(async (file?: string, options?: { dir?: string; all?: boolean; list?: string[]; debug?: boolean }) => {
         const opts = options || {};
+        if (opts.debug) {
+            if (!file || !fs.existsSync(file)) {
+                console.error('usage: slasm --debug <file>');
+                process.exitCode = 1;
+                return;
+            }
+            await debug(fs.readFileSync(file, { encoding: 'utf-8' }));
+            return;
+        }
         if (opts.dir) {
             const files = getFilesFromDir(opts.dir, !!opts.all);
             if (files.length === 0) {
@@ -118,6 +130,14 @@ program
     .action(async (file: string) => runFile(file));
 
 program
+    .command('debug <file>')
+    .description('run a .slasm file in the interactive debugger (step, inject code, inspect stack and memory)')
+    .action(async (file: string) => {
+        if (!fs.existsSync(file)) throw new Error(`no such file: ${file}`);
+        await debug(fs.readFileSync(file, { encoding: 'utf-8' }));
+    });
+
+program
     .command('eval [code...]')
     .description('evaluate inline slasm code')
     .action(async (code: string[]) => {
@@ -127,6 +147,8 @@ program
         const proc = slasm.eval_slasm(src);
         proc.on('output', (value) => process.stdout.write(`${value}\n`));
         proc.on('input', (reply) => reply(readStdinLine()));
+        proc.on('error', (err) => console.error(err instanceof SlasmError ? err.format() : `slasm Error: ${err.message}`));
+        void proc.start();
         await proc.result;
     });
 

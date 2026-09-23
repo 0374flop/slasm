@@ -34,6 +34,7 @@ export default async function repl(): Promise<void> {
         });
 
         try {
+            void proc.start();
             await proc.result;
             if (proc.stack && proc.stack.length === 1) {
                 console.log(proc.stack[0]);
