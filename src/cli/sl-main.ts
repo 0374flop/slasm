@@ -99,6 +99,7 @@ program
         }
 
         if (!file) {
+            console.error(`slasm, v${packageJson.version}.\nType '.exit' or 'exit' to exit the REPL.`);
             await repl();
             return;
         }
