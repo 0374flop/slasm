@@ -1,6 +1,6 @@
 {
   "name": "slasm-0374",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "slasm",
   "main": "lib/interpreter/index.js",
   "scripts": {
