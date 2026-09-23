@@ -1,5 +1,5 @@
 import readline from 'node:readline';
-import slasm from '../interpreter/index.js';
+import slasm, { comment, label } from '../interpreter/index.js';
 
 export default async function repl(): Promise<void> {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -14,7 +14,7 @@ export default async function repl(): Promise<void> {
             process.exit();
         }
 
-        let compiled = [];
+        let compiled: [string[], label[], comment[]];
         try {
             compiled = slasm.compile(code);
         } catch (error) {
