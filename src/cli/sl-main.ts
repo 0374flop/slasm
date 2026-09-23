@@ -24,7 +24,7 @@ async function runFile(file: string): Promise<void> {
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     proc.on('output', (value) => process.stdout.write(`${value}\n`));
-    proc.on('input', (reply) => rl.question('', (line) => reply(line)));
+    proc.on('input', (reply) => rl.question('> ', (line) => reply(line)));
     proc.once('done',  () => rl.close());
     proc.once('error', () => rl.close());
     proc.on('error', (err) => console.error('slasm Error:', err.message));
