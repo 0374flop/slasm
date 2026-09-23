@@ -13,6 +13,7 @@ const HELP = [
     '  .labels                show labels',
     '  .abort                 abort the current inject',
     '  .inject <code>         inject code but do not run it: walk through it with .step',
+    '  .patch <code>          live patch: inject, run and keep the code in the program, ip goes on',
     '  .kill                  kill the program',
     '  .help                  show this help',
     '  .exit, .q              leave the debugger',
@@ -87,7 +88,9 @@ export default async function debug(program: string, inputQueue: string[] | null
 
     proc.on('output', (value) => console.log(`| ${value}`));
     proc.on('error', (err) => console.log(formatError(err)));
-    proc.on('injectdone', () => console.log('inject finished, ip restored'));
+    proc.on('injectdone', (kept) => console.log(kept
+        ? `patch applied, program is now ${proc.instructions.length} instructions`
+        : 'inject finished, ip restored'));
     proc.on('input', (reply) => {
         void ask('input> ').then((line) => reply(line ?? ''));
     });
@@ -173,6 +176,24 @@ export default async function debug(program: string, inputQueue: string[] | null
             }
             console.log(`injected ${compiled[0].length} instructions, not running. .step to walk through, .c to run, .abort to drop`);
             console.log(status(proc));
+            continue;
+        }
+
+        if (text === '.patch' || text.startsWith('.patch ')) {
+            const code = text.slice('.patch'.length).trim();
+            if (code === '') { console.log('usage: .patch <code>'); continue; }
+            if (proc.finished) { console.log('program is finished, nothing to patch'); continue; }
+            if (proc.injecting) { console.log('already injecting, use .step, .c or .abort'); continue; }
+
+            try {
+                const compiled = slasm.compile(code);
+                proc.inject(compiled[0], compiled[1], { keep: true });
+            } catch (error) {
+                console.log(formatError(error));
+                continue;
+            }
+
+            await advance(() => proc.continue());
             continue;
         }
 

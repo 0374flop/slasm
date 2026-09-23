@@ -8,7 +8,7 @@ export type ProcessEvents = {
     input: (reply: (v: string) => void) => void;
     error: (err: Error) => void;
     done: (clog: string[]) => void;
-    injectdone: () => void;
+    injectdone: (kept: boolean) => void;
 };
 
 export type ProcessStatus = 'idle' | 'paused' | 'running' | 'done';
@@ -18,6 +18,7 @@ type InjectState = {
     end: number;
     savedWindow: string[];
     savedIp: number;
+    keep: boolean;
 };
 
 export class SlasmProcess extends EventEmitter {
@@ -100,17 +101,17 @@ export class SlasmProcess extends EventEmitter {
 
         if (inj !== null) {
             if (rt.ip >= inj.end) {
-                this.finishInject();
+                this.finishInject(true);
                 return;
             }
             try {
                 await runInstruction(rt);
             } catch (err) {
                 this.emit('error', err instanceof Error ? err : new Error(String(err)));
-                this.finishInject();
+                this.finishInject(false);
                 return;
             }
-            if (this.inject_ !== null && rt.ip >= this.inject_.end) this.finishInject();
+            if (this.inject_ !== null && rt.ip >= this.inject_.end) this.finishInject(true);
             return;
         }
 
@@ -160,7 +161,7 @@ export class SlasmProcess extends EventEmitter {
         if (this._status === 'running') this._status = 'paused';
     }
 
-    inject(instructions: string[], labels: label[] = []): void {
+    inject(instructions: string[], labels: label[] = [], options: { keep?: boolean } = {}): void {
         if (this._status === 'done') throw new Error('inject: process is finished');
         if (this._status === 'running') throw new Error('inject: process is running');
         if (this.inject_ !== null) throw new Error('inject: already injecting');
@@ -179,30 +180,34 @@ export class SlasmProcess extends EventEmitter {
             rt.labels.push(shifted);
         }
 
-        this.inject_ = { start, end, savedWindow, savedIp: start };
+        this.inject_ = { start, end, savedWindow, savedIp: start, keep: options.keep === true };
     }
 
     abortInject(): void {
         if (this.inject_ === null) return;
-        this.finishInject();
+        this.finishInject(false);
     }
 
-    private finishInject(): void {
+    private finishInject(commit: boolean): void {
         const inj = this.inject_;
         if (inj === null) return;
         const rt = this.runtime;
+        const kept = commit && inj.keep;
 
-        rt.instructions.splice(inj.start, inj.end - inj.start, ...inj.savedWindow);
-        rt.ip = inj.savedIp;
+        if (!kept) {
+            rt.instructions.splice(inj.start, inj.end - inj.start, ...inj.savedWindow);
+            rt.ip = inj.savedIp;
+        }
         this.inject_ = null;
 
         if (this._status === 'running') this._status = 'paused';
-        this.emit('injectdone');
+        this.emit('injectdone', kept);
+        if (kept && this.atEnd) this.finish();
     }
 
     kill(): void {
         if (this._status === 'done') return;
-        if (this.inject_ !== null) this.finishInject();
+        if (this.inject_ !== null) this.finishInject(false);
         this.runtime.ip = this.runtime.instructions.length;
         this.finish();
     }
