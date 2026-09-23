@@ -6,32 +6,38 @@ function checkStack(rt: Runtime, count: number, op: string): void {
     if (rt.stack.length < count) throw new Error(`${op}: stack underflow`);
 }
 
+function parseNum(val: string | undefined): number {
+    if (val === undefined || val === '') return 0;
+    const n = Number(val);
+    return Number.isNaN(n) ? 0 : n;
+}
+
 export const arithmetic: Map<string, Handler> = new Map([
     ['+', (rt) => {
         checkStack(rt, 2, '+');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         rt.stack.push(String(a + b));
         rt.ip++;
     }],
     ['-', (rt) => {
         checkStack(rt, 2, '-');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         rt.stack.push(String(a - b));
         rt.ip++;
     }],
     ['*', (rt) => {
         checkStack(rt, 2, '*');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         rt.stack.push(String(a * b));
         rt.ip++;
     }],
     ['/', (rt) => {
         checkStack(rt, 2, '/');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         if (b === 0) {
             rt.stack.push('Infinity');
         } else {
@@ -41,8 +47,8 @@ export const arithmetic: Map<string, Handler> = new Map([
     }],
     ['%', (rt) => {
         checkStack(rt, 2, '%');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         if (b === 0) {
             rt.stack.push('NaN');
         } else {
@@ -59,15 +65,15 @@ export const arithmetic: Map<string, Handler> = new Map([
     }],
     ['<', (rt) => {
         checkStack(rt, 2, '<');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         rt.stack.push(String(a < b));
         rt.ip++;
     }],
     ['>', (rt) => {
         checkStack(rt, 2, '>');
-        const b = Number(rt.stack.pop());
-        const a = Number(rt.stack.pop());
+        const b = parseNum(rt.stack.pop());
+        const a = parseNum(rt.stack.pop());
         rt.stack.push(String(a > b));
         rt.ip++;
     }],

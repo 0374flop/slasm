@@ -12,16 +12,26 @@ export const control: Map<string, Handler> = new Map([
         rt.ip++;
     }],
     ['jump', (rt) => {
-        const target = Number(rt.stack.pop());
-        if (Number.isNaN(target) || target < 1 || target > rt.instructions.length + 1) throw new Error(`jump: target ${target} out of range`);
-        rt.ip = target - 1;
+        let target = Math.trunc(Number(rt.stack.pop()) || 0);
+        if (target <= 1) {
+            rt.ip = 0;
+        } else if (target > rt.instructions.length) {
+            rt.ip = rt.instructions.length;
+        } else {
+            rt.ip = target - 1;
+        }
     }],
     ['?', (rt) => {
-        const target = Number(rt.stack.pop());
+        let target = Math.trunc(Number(rt.stack.pop()) || 0);
         const cond   = rt.stack.pop();
         if (cond === 'true') {
-            if (Number.isNaN(target) || target < 1 || target > rt.instructions.length + 1) throw new Error(`?: target ${target} out of range`);
-            rt.ip = target - 1;
+            if (target <= 1) {
+                rt.ip = 0;
+            } else if (target > rt.instructions.length) {
+                rt.ip = rt.instructions.length;
+            } else {
+                rt.ip = target - 1;
+            }
         } else {
             rt.ip++;
         }
