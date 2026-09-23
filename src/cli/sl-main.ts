@@ -136,7 +136,7 @@ program
 
 program
     .command('parse [input...]')
-    .description('parse slasm code and print its instruction list')
+    .description('parse slasm code and print its instruction list for debugging purposes (pretty-parser)')
     .action(async (input: string[]) => {
         const src = await readInput(input, 'usage: slasm parse <file|code>  (or pipe code via stdin)');
         const result = slasm.parse(slasm.tokenize(src));
