@@ -76,4 +76,18 @@ export const arithmetic: Map<string, Handler> = new Map([
         rt.stack.push(String(rt.stack.pop() !== 'true'));
         rt.ip++;
     }],
+    ['&', (rt) => {
+        checkStack(rt, 2, '&');
+        const b = rt.stack.pop();
+        const a = rt.stack.pop();
+        rt.stack.push(String(a === 'true' && b === 'true'));
+        rt.ip++;
+    }],
+    ['\\', (rt) => {
+        checkStack(rt, 2, '\\');
+        const b = rt.stack.pop();
+        const a = rt.stack.pop();
+        rt.stack.push(String(a === 'true' || b === 'true'));
+        rt.ip++;
+    }],
 ]);

@@ -26,4 +26,33 @@ export const control: Map<string, Handler> = new Map([
             rt.ip++;
         }
     }],
+    ['CO', (rt) => {
+        rt.instructions.push('');
+        rt.ip++;
+    }],
+    ['SO', (rt) => {
+        const newOp = rt.stack.pop() ?? '';
+        const targetIp = Number(rt.stack.pop());
+        if (!Number.isNaN(targetIp) && targetIp >= 1 && targetIp <= rt.instructions.length) {
+            rt.instructions[targetIp - 1] = newOp;
+        }
+        rt.ip++;
+    }],
+    ['iget', (rt) => {
+        const targetIp = Number(rt.stack.pop());
+        if (!Number.isNaN(targetIp) && targetIp >= 1 && targetIp <= rt.instructions.length) {
+            rt.stack.push(rt.instructions[targetIp - 1]);
+        } else {
+            rt.stack.push('');
+        }
+        rt.ip++;
+    }],
+    ['i', (rt) => {
+        rt.stack.push(String(rt.ip + 1));
+        rt.ip++;
+    }],
+    ['inum', (rt) => {
+        rt.stack.push(String(rt.instructions.length));
+        rt.ip++;
+    }],
 ]);

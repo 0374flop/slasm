@@ -31,4 +31,8 @@ export const stack: Map<string, Handler> = new Map([
         rt.stack[n] = data;
         rt.ip++;
     }],
+    ['numstack', (rt) => {
+        rt.stack.push(String(rt.stack.length));
+        rt.ip++;
+    }],
 ]);

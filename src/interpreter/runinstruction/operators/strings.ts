@@ -39,4 +39,14 @@ export const strings: Map<string, Handler> = new Map([
         rt.stack.push(' .,!?+-*/_…()'[n] ?? '');
         rt.ip++;
     }],
+    ['S2', (rt) => {
+        const n = Number(rt.stack.pop());
+        let res = '';
+        if (n === 0 || n === 1) res = ' ';
+        else if (n === 2) res = '(';
+        else if (n === 3) res = ')';
+        else if (n === 4) res = ';';
+        rt.stack.push(res);
+        rt.ip++;
+    }],
 ]);
