@@ -25,10 +25,16 @@ const handlers: Map<string, Handler> = new Map([
     ...Array.from(misc.entries()),
 ]);
 
+const MAX_STACK_SIZE = 20000;
+
 export default async function runInstruction(runtime: Runtime): Promise<void> {
     const op = runtime.instructions[runtime.ip];
 
     const handler = handlers.get(op);
     if (!handler) throw new Error(`Undefined operator '${op}'`);
     await handler(runtime);
+
+    if (runtime.stack.length > MAX_STACK_SIZE) {
+        throw new Error(`Stack overflow: exceeded limit of ${MAX_STACK_SIZE}`);
+    }
 }

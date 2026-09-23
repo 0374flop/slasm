@@ -15,15 +15,23 @@ export const strings: Map<string, Handler> = new Map([
     }],
     ['rep', (rt) => {
         const text = rt.stack.pop() ?? '';
-        const n = Number(rt.stack.pop());
-        if (Number.isNaN(n) || n < 0 || !Number.isFinite(n)) throw new Error('rep: invalid count');
-        rt.stack.push(text.repeat(n));
+        const n = Math.trunc(Number(rt.stack.pop()) || 0);
+        if (n <= 0 || text === '' || !Number.isFinite(n)) {
+            rt.stack.push('');
+        } else {
+            rt.stack.push(text.repeat(n));
+        }
         rt.ip++;
     }],
     ['char', (rt) => {
         const str = rt.stack.pop() ?? '';
-        const n = Number(rt.stack.pop());
-        rt.stack.push(str[n] ?? '');
+        const rawN = rt.stack.pop();
+        const n = Math.trunc(Number(rawN) || 0);
+        if (n < 0 || n >= str.length || rawN === undefined) {
+            rt.stack.push('');
+        } else {
+            rt.stack.push(str[n] ?? '');
+        }
         rt.ip++;
     }],
     ['L', (rt) => {
