@@ -14,7 +14,14 @@ export default async function repl(): Promise<void> {
             process.exit();
         }
 
-        const proc = slasm.eval_slasm(code);
+        let compiled = [];
+        try {
+            compiled = slasm.compile(code);
+        } catch (error) {
+            console.log(error instanceof Error ? error.message : error);
+            continue;
+        }
+        const proc = slasm.evaluate(compiled[0], compiled[1]);
 
         proc.on('output', (value) => process.stdout.write(`${value}\n`));
         proc.on('input', (reply) => {
