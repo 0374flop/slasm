@@ -12,6 +12,7 @@ export default function evaluate(
     const proc = new SlasmProcess();
     const runtime = createRuntime(instructions, labels, proc, inputQueue);
     runtime.clog = clog;
+    proc.stack = runtime.stack;
 
     proc.kill = () => {
         runtime.ip = runtime.instructions.length;

@@ -8,7 +8,7 @@ export default async function repl(): Promise<void> {
 
     while (true) {
         const code = await ask();
-        if (!code || code.toLowerCase() === 'exit') {
+        if (!code || code.trim().toLowerCase() === '.exit' || code.trim().toLowerCase() === 'exit') {
             console.log('exited');
             rl.close();
             process.exit();
@@ -23,8 +23,12 @@ export default async function repl(): Promise<void> {
 
         try {
             await proc.result;
+            if (proc.stack && proc.stack.length === 1) {
+                console.log(proc.stack[0]);
+            }
         } catch (error) {
             console.log(error instanceof Error ? error.message : error);
         }
     }
 }
+

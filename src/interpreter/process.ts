@@ -10,6 +10,7 @@ export type ProcessEvents = {
 export class SlasmProcess extends EventEmitter {
     result!: Promise<string[]>;
     kill!: () => void;
+    stack!: string[];
 
     emit<K extends keyof ProcessEvents>(event: K, ...args: Parameters<ProcessEvents[K]>): boolean;
     emit(event: string, ...args: any[]): boolean {
