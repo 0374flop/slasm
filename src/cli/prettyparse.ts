@@ -31,17 +31,18 @@ export default function prettyParse(instructions: string[], labels: label[], com
             if (next === 'jump') {
                 const target = Number(val);
                 const lbl = labelAtIp.get(target);
-                annotation = lbl ? `  > ${target} (${lbl})` : `  > ${target}`;
+                annotation = lbl ? ` > ${target} (${lbl})` : ` > ${target}`;
             } else if (next === '?') {
                 const target = Number(val);
                 const lbl = labelAtIp.get(target);
-                annotation = lbl ? `  > ${target} (${lbl}) if true` : `  > ${target} if true`;
+                annotation = lbl ? ` > ${target} (${lbl}) if true` : ` > ${target} if true`;
             } else if (next === 'gln') {
                 annotation = `  (label name)`;
             }
             lines.push(`${pad(ip)}  push`);
-            lines.push(`${pad(ip + 1)}  ${val}${annotation}`);
-            i += 2;
+            lines.push(`${pad(ip + 1)}  ${val}`);
+            lines.push(`${pad(ip + 2)}  ${next}${annotation}`);
+            i += 3;
             continue;
         }
 
