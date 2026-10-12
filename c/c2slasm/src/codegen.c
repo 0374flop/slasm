@@ -15,7 +15,7 @@ typedef struct {
 
 static VarEntry g_vars[MAX_VARS];
 static int g_varCount = 0;
-static int g_nextReg = 100;
+static int g_nextReg = 1;
 
 typedef struct {
     char name[NAME_BUF_SIZE];
@@ -85,11 +85,43 @@ static void emit_label(FILE *out, const char *label) {
 
 static void gen_expr(Expr *e, FILE *out);
 
+/* Выражение, результат которого в slasm — булево ('true'/'false'), а не число. */
+static int is_bool_expr(Expr *e) {
+    if (!e) return 0;
+    if (e->kind == EXPR_UNOP) return strcmp(e->op, "!") == 0;
+    if (e->kind != EXPR_BINOP) return 0;
+    static const char *ops[] = { "<", ">", "<=", ">=", "==", "!=", "&&", "||" };
+    for (size_t i = 0; i < sizeof(ops) / sizeof(ops[0]); i++) {
+        if (strcmp(e->op, ops[i]) == 0) return 1;
+    }
+    return 0;
+}
+
+/* Выражение как число: значение для W, операнд арифметики и сравнений. */
+static void gen_val(Expr *e, FILE *out) {
+    if (is_bool_expr(e)) {
+        fprintf(stderr, "codegen error: boolean expression used as a value is not supported yet\n");
+        exit(1);
+    }
+    gen_expr(e, out);
+}
+
+/* Выражение как условие: на выходе булево. Число x превращается в (! (= x 0)). */
+static void gen_cond(Expr *e, FILE *out) {
+    if (is_bool_expr(e)) {
+        gen_expr(e, out);
+    } else {
+        fprintf(out, "(! (= ");
+        gen_expr(e, out);
+        fprintf(out, " 0))");
+    }
+}
+
 /* Корректный вывод для записи: (W key val) */
 static void emit_write_var(int reg, Expr *valExpr, FILE *out) {
     fprintf(out, "(W %d ", reg);
     if (valExpr) {
-        gen_expr(valExpr, out);
+        gen_val(valExpr, out);
     } else {
         fprintf(out, "0");
     }
@@ -97,11 +129,48 @@ static void emit_write_var(int reg, Expr *valExpr, FILE *out) {
 }
 
 static void gen_binop(Expr *e, FILE *out) {
-    fprintf(out, "(%s ", strcmp(e->op, "==") == 0 ? "=" : e->op);
-    gen_expr(e->lhs, out);
+    const char *op = e->op;
+
+    /* && и || — булевы, в slasm это '&' и '\' (оба операнда вычисляются) */
+    if (strcmp(op, "&&") == 0 || strcmp(op, "||") == 0) {
+        fprintf(out, "(%s ", op[0] == '&' ? "&" : "\\");
+        gen_cond(e->lhs, out);
+        fprintf(out, " ");
+        gen_cond(e->rhs, out);
+        fprintf(out, ")");
+        return;
+    }
+
+    /* Целочисленное деление: slasm '/' дробный, а '%' берёт знак делимого как в C,
+       поэтому a / b == (a - a % b) / b */
+    if (strcmp(op, "/") == 0) {
+        fprintf(out, "(/ (- ");
+        gen_val(e->lhs, out);
+        fprintf(out, " (%% ");
+        gen_val(e->lhs, out);
+        fprintf(out, " ");
+        gen_val(e->rhs, out);
+        fprintf(out, ")) ");
+        gen_val(e->rhs, out);
+        fprintf(out, ")");
+        return;
+    }
+
+    /* Операторов != <= >= в slasm нет, выражаем через ! и = < > */
+    const char *outer = NULL;
+    const char *inner = op;
+    if (strcmp(op, "==") == 0) inner = "=";
+    else if (strcmp(op, "!=") == 0) { outer = "!"; inner = "="; }
+    else if (strcmp(op, "<=") == 0) { outer = "!"; inner = ">"; }
+    else if (strcmp(op, ">=") == 0) { outer = "!"; inner = "<"; }
+
+    if (outer) fprintf(out, "(%s ", outer);
+    fprintf(out, "(%s ", inner);
+    gen_val(e->lhs, out);
     fprintf(out, " ");
-    gen_expr(e->rhs, out);
+    gen_val(e->rhs, out);
     fprintf(out, ")");
+    if (outer) fprintf(out, ")");
 }
 
 static void gen_call_stmt(Expr *e, FILE *out) {
@@ -165,12 +234,20 @@ static void gen_expr(Expr *e, FILE *out) {
         case EXPR_UNOP:
             if (strcmp(e->op, "-") == 0) {
                 fprintf(out, "(- 0 ");
-                gen_expr(e->lhs, out);
+                gen_val(e->lhs, out);
                 fprintf(out, ")");
             } else if (strcmp(e->op, "!") == 0) {
-                fprintf(out, "(! ");
-                gen_expr(e->lhs, out);
-                fprintf(out, ")");
+                if (is_bool_expr(e->lhs)) {
+                    /* !булево -> (! b) */
+                    fprintf(out, "(! ");
+                    gen_expr(e->lhs, out);
+                    fprintf(out, ")");
+                } else {
+                    /* !число -> (= x 0), потому что slasm '!' для не-'true' всегда даёт 'true' */
+                    fprintf(out, "(= ");
+                    gen_val(e->lhs, out);
+                    fprintf(out, " 0)");
+                }
             }
             break;
         case EXPR_CALL:
@@ -226,7 +303,7 @@ static void gen_stmt(Stmt *s, FILE *out) {
 
             /* Порядок перехода: (? cond target) */
             fprintf(out, "(? (! ");
-            gen_expr(s->expr, out);
+            gen_cond(s->expr, out);
             fprintf(out, ") (gln %s))\n", s->elseBranch ? elseLabel : endLabel);
 
             gen_stmt(s->thenBranch, out);
@@ -248,7 +325,7 @@ static void gen_stmt(Stmt *s, FILE *out) {
 
             /* Порядок условного перехода: (? cond target) */
             fprintf(out, "(? (! ");
-            gen_expr(s->expr, out);
+            gen_cond(s->expr, out);
             fprintf(out, ") (gln %s))\n", endLabel);
 
             gen_stmt(s->thenBranch, out);
@@ -309,7 +386,7 @@ void codegen_program(Program *prog, FILE *out) {
     g_prog = prog;
     g_varCount = 0;
     g_funcCount = 0;
-    g_nextReg = 100;
+    g_nextReg = 1;
     g_labelCounter = 0;
 
     fprintf(out, "(jump (gln main))\n");

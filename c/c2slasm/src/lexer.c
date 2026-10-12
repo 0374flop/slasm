@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
 
@@ -97,8 +99,12 @@ Token lexer_next(Lexer *lx) {
         case '*': t.type = TOK_STAR; return t;
         case '/': t.type = TOK_SLASH; return t;
         case '%': t.type = TOK_PERCENT; return t;
-        case '<': t.type = TOK_LT; return t;
-        case '>': t.type = TOK_GT; return t;
+        case '<':
+            if (peekc(lx) == '=') { advc(lx); t.type = TOK_LE; return t; }
+            t.type = TOK_LT; return t;
+        case '>':
+            if (peekc(lx) == '=') { advc(lx); t.type = TOK_GE; return t; }
+            t.type = TOK_GT; return t;
         case '!':
             if (peekc(lx) == '=') { advc(lx); t.type = TOK_NEQ; return t; }
             t.type = TOK_NOT; return t;
@@ -113,6 +119,6 @@ Token lexer_next(Lexer *lx) {
             break;
     }
 
-    t.type = TOK_EOF;
-    return t;
+    fprintf(stderr, "lex error line %d: unexpected character '%c'\n", lx->line, c);
+    exit(1);
 }

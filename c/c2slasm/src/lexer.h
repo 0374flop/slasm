@@ -20,6 +20,8 @@ typedef enum {
     TOK_PERCENT,
     TOK_LT,
     TOK_GT,
+    TOK_LE,
+    TOK_GE,
     TOK_EQ,
     TOK_NEQ,
     TOK_AND,

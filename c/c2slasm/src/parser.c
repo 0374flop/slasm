@@ -115,38 +115,57 @@ static Expr *parse_additive(Parser *p) {
     return lhs;
 }
 
+static Expr *make_binop(const char *op, Expr *lhs, Expr *rhs) {
+    Expr *e = expr_new(EXPR_BINOP);
+    strcpy(e->op, op);
+    e->lhs = lhs;
+    e->rhs = rhs;
+    return e;
+}
+
+/* < > <= >= */
 static Expr *parse_relational(Parser *p) {
     Expr *lhs = parse_additive(p);
     while (p->cur.type == TOK_LT || p->cur.type == TOK_GT ||
-           p->cur.type == TOK_EQ || p->cur.type == TOK_NEQ) {
-        char op[3];
-        if (p->cur.type == TOK_LT) strcpy(op, "<");
-        else if (p->cur.type == TOK_GT) strcpy(op, ">");
-        else if (p->cur.type == TOK_EQ) strcpy(op, "==");
-        else strcpy(op, "!=");
+           p->cur.type == TOK_LE || p->cur.type == TOK_GE) {
+        const char *op;
+        if (p->cur.type == TOK_LT) op = "<";
+        else if (p->cur.type == TOK_GT) op = ">";
+        else if (p->cur.type == TOK_LE) op = "<=";
+        else op = ">=";
         advance(p);
-        Expr *rhs = parse_additive(p);
-        Expr *e = expr_new(EXPR_BINOP);
-        strcpy(e->op, op);
-        e->lhs = lhs;
-        e->rhs = rhs;
-        lhs = e;
+        lhs = make_binop(op, lhs, parse_additive(p));
     }
     return lhs;
 }
 
-static Expr *parse_logical(Parser *p) {
+/* == != */
+static Expr *parse_equality(Parser *p) {
     Expr *lhs = parse_relational(p);
-    while (p->cur.type == TOK_AND || p->cur.type == TOK_OR) {
-        char op[3];
-        strcpy(op, p->cur.type == TOK_AND ? "&&" : "||");
+    while (p->cur.type == TOK_EQ || p->cur.type == TOK_NEQ) {
+        const char *op = p->cur.type == TOK_EQ ? "==" : "!=";
         advance(p);
-        Expr *rhs = parse_relational(p);
-        Expr *e = expr_new(EXPR_BINOP);
-        strcpy(e->op, op);
-        e->lhs = lhs;
-        e->rhs = rhs;
-        lhs = e;
+        lhs = make_binop(op, lhs, parse_relational(p));
+    }
+    return lhs;
+}
+
+/* && */
+static Expr *parse_and(Parser *p) {
+    Expr *lhs = parse_equality(p);
+    while (p->cur.type == TOK_AND) {
+        advance(p);
+        lhs = make_binop("&&", lhs, parse_equality(p));
+    }
+    return lhs;
+}
+
+/* || */
+static Expr *parse_or(Parser *p) {
+    Expr *lhs = parse_and(p);
+    while (p->cur.type == TOK_OR) {
+        advance(p);
+        lhs = make_binop("||", lhs, parse_and(p));
     }
     return lhs;
 }
@@ -169,7 +188,7 @@ static Expr *parse_expr(Parser *p) {
         p->lx = savedLx;
         p->cur = savedTok;
     }
-    return parse_logical(p);
+    return parse_or(p);
 }
 
 static Stmt *parse_stmt(Parser *p);
