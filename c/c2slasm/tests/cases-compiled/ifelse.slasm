@@ -1,0 +1,40 @@
+(jump (gln main))
+;-classify-;
+(? (! (< (R 1) 0)) (gln else_0))
+(W 2 1)
+(jump (R 3))
+(jump (gln endif_1))
+;-else_0-;
+(? (! (= (R 1) 0)) (gln else_2))
+(W 2 2)
+(jump (R 3))
+(jump (gln endif_3))
+;-else_2-;
+(W 2 3)
+(jump (R 3))
+;-endif_3-;
+;-endif_1-;
+(jump (R 3))
+;-main-;
+(W 1 (- 0 5))
+(W 3 (gln callret_4))
+(jump (gln classify))
+;-callret_4-;
+(W 4 (R 2))
+(clearstack)
+(W 1 0)
+(W 3 (gln callret_5))
+(jump (gln classify))
+;-callret_5-;
+(W 5 (R 2))
+(clearstack)
+(W 1 7)
+(W 3 (gln callret_6))
+(jump (gln classify))
+;-callret_6-;
+(W 6 (R 2))
+(clearstack)
+(W 7 (+ (+ (* (R 4) 100) (* (R 5) 10)) (R 6)))
+(jump (gln program_end))
+;-program_end-;
+(clog (R 7))

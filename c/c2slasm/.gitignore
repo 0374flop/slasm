@@ -1,1 +1,3 @@
 /c2slasm
+*.gcc
+tests/cases-compiled/c2slasm_err

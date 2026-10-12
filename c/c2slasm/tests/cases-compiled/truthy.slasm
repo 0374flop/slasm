@@ -1,0 +1,15 @@
+(jump (gln main))
+;-main-;
+(W 1 5)
+(W 2 0)
+;-wstart_0-;
+(? (! (! (= (R 1) 0))) (gln wend_1))
+(W 2 (+ (R 2) (R 1)))
+(W 1 (- (R 1) 1))
+(clearstack)
+(jump (gln wstart_0))
+;-wend_1-;
+(W 3 (R 2))
+(jump (gln program_end))
+;-program_end-;
+(clog (R 3))

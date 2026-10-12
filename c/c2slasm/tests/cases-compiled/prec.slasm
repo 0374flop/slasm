@@ -1,0 +1,31 @@
+(jump (gln main))
+;-main-;
+(W 1 0)
+(? (! (\ (! (= 1 0)) (& (! (= 0 0)) (! (= 0 0))))) (gln endif_1))
+(W 1 (+ (R 1) 1))
+(jump (gln endif_1))
+;-endif_1-;
+(? (! (= (+ 1 (* 2 3)) 7)) (gln endif_3))
+(W 1 (+ (R 1) 2))
+(jump (gln endif_3))
+;-endif_3-;
+(? (! (& (= (+ 1 1) 2) (= (- 3 1) 2))) (gln endif_5))
+(W 1 (+ (R 1) 4))
+(jump (gln endif_5))
+;-endif_5-;
+(? (! (= (% (* 2 3) 4) 2)) (gln endif_7))
+(W 1 (+ (R 1) 8))
+(jump (gln endif_7))
+;-endif_7-;
+(? (! (= (- (- 10 3) 2) 5)) (gln endif_9))
+(W 1 (+ (R 1) 16))
+(jump (gln endif_9))
+;-endif_9-;
+(? (! (= (+ (- 0 2) 5) 3)) (gln endif_11))
+(W 1 (+ (R 1) 32))
+(jump (gln endif_11))
+;-endif_11-;
+(W 2 (R 1))
+(jump (gln program_end))
+;-program_end-;
+(clog (R 2))
